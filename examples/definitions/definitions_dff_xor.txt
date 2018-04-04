@@ -1,0 +1,149 @@
+* Definition file for TimEx - MITLL generic cell library with 250 uA JJ JTLs
+* Author:   CJ Fourie
+* Last mod: 5 January 2018
+$Parameters
+SourceType      = current
+*SourceAmplitude = 600E-6
+*SourceRiseTime  = 10E-12
+*SourceFallTime  = 10E-12
+SourceAmplitude = 1000E-6
+SourceRiseTime  = 1E-12
+SourceFallTime  = 1E-12
+TimeFirstStable = 20E-12
+WaitForStateChange = 40E-12
+VerilogStableTime = 10E-12
+VerilogWaitTime = 10E-12
+SlidingIntegratorLength = 12.5E-12
+PulseDetectThreshold = 0.5
+CTDependencyThreshold = 0.1E-12
+PulseFluxonFraction = 0.9
+MaxDelayChange = 0.75E-12
+InputChainDelay = 7.5E-12
+$End
+
+$DefaultLoadIn
+.SUBCKT defloadin 2 5 
+B1 1 6 jjmitll100 area=2.5 
+B2 4 8 jjmitll100 area=2.5 
+IB1 0 3 pwl(0 0 5p 350uA)
+L1 2 1 2p  
+L2 1 3 2p  
+L3 3 4 2p  
+L4 4 5 2p  
+LB1 7 6 1p  
+LB2 9 8 1p  
+Lp1 6 0 0.2p  
+Lp2 8 0 0.2p  
+RB1 1 7 3.88  
+RB2 4 9 3.88
+.model jjmitll100 jj(rtype=1, vg=2.8mV, cap=0.07pF, r0=160, rn=16, icrit=0.1mA)
+.ends defloadin
+$End
+
+$DefaultLoadOut
+.SUBCKT defloadout 2 27 
+
+RIX   6  0 2
+ROX   10 0 2
+B01        3          31         jmitll     area=2.5
+B02        1          32         jmitll     area=1.75
+B03        3          12         jmitll     area=1.69
+B04        7          29         jmitll     area=2.5
+B05        5          30         jmitll     area=1.75
+B06        7          14         jmitll     area=1.69
+B07        21         16         jmitll     area=1.85
+B08        22         23         jmitll     area=1.63
+B09        9          28         jmitll     area=1.69
+B10        9          33         jmitll     area=2.17
+B11        25         26         jmitll     area=2.18
+IB01       0          42         pwl(0      0 5p 225u)
+IB02       0          43         pwl(0      0 5p 225u)
+IB03       0          18         pwl(0      0 5p 60u)
+IB04       0          19         pwl(0      0 5p 60u)
+IB05       0          41         pwl(0      0 5p 180u)
+IB06       0          45         pwl(0      0 5p 160u)
+L01        2          1          2.53p     
+L02        4          3          2.1p    
+L03        12         17         1.6p    
+L04        6          5          2.53p     
+L05        8          7          2.1p    
+L06        14         15         1.6p     
+L07        17         16         1.9p    
+L08        15         16         1.9p    
+L09        21         22         1.422p    
+L10        22         28         3.07p     
+L11        10         9          2.436p    
+L12        22         24         4.047p    
+L13        25         27         2.213p    
+L14        1          4          1p        
+L15        5          8          1p        
+L16        24         25         1.047p    
+LP01       0          31         0.13p     
+LP02       0          32         0.146p    
+LP03       0          29         0.127p    
+LP04       0          30         0.138p    
+LP05       0          23         0.307p    
+LP06       0          33         0.159p    
+LP07       0          26         0.153p    
+LPR01      4          42         0.211p    
+LPR02      8          43         0.211p    
+LPR03      17         18         0.351p    
+LPR04      15         19         0.361p    
+LPR05      9          41         0.208p    
+LPR06      24         45         0.361p    
+LRB01      31         36         1p        
+LRB02      32         35         1p        
+LRB03      11         12         1p        
+LRB04      29         37         1p        
+LRB05      30         38         1p        
+LRB06      13         14         1p        
+LRB07      20         21         1p        
+LRB08      23         39         1p        
+LRB09      44         9          1p        
+LRB10      33         34         1p        
+LRB11      26         40         1p        
+RB01       36         3          3.88      
+RB02       35         1          5.54       
+RB03       11         3          5.4       
+RB04       37         7          3.88      
+RB05       38         5          5.54       
+RB06       13         7          5.4       
+RB07       16         20         5.25      
+RB08       39         22         6         
+RB09       28         44         5.4       
+RB10       34         9          4.45      
+RB11       40         25         4.45      
+.model jmitll jj(rtype=1, vg=2.8mV, cap=0.07pF, r0=160, rn=16, icrit=0.1mA)
+.ends defloadout
+$End
+
+$DefaultSink
+.SUBCKT defsink 1
+R1 1 0 2
+.ends defsink
+$End
+
+$DefaultSource
+.SUBCKT gensource 8 11 
+B1   1  2  jjmitll100 area=2.25 
+B2   3  4  jjmitll100 area=2.25 
+B3   5  6  jjmitll100 area=2.5 
+IB1  0  2  pwl(0 0 5p 275uA)
+IB2  0  5  pwl(0 0 5p 175uA)
+L1   8  7  1p  
+L2   7  0  3.9p  
+L3   7  1  0.6p  
+L4   2  3  1.1p  
+L5   3  5  4.5p  
+L6   5  11 2p  
+Lp2  4  0  0.2p  
+Lp3  6  0  0.2p  
+LRB1 9  2  1p  
+LRB2 10 4  1p  
+LRB3 12 6  1p  
+RB1  1  9  4.31  
+RB2  3  10 4.31  
+RB3  5  12 3.88  
+.model jjmitll100 jj(rtype=1, vg=2.8mV, cap=0.07pF, r0=160, rn=16, icrit=0.1mA)
+.ends gensource
+$End

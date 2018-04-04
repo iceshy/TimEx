@@ -1,0 +1,137 @@
+* Definition file for TimEx - MITLL generic cell library with 250 uA JJ JTLs
+* Author:   CJ Fourie
+* Last mod: 5 January 2018
+$Parameters
+SourceType      = current
+*SourceAmplitude = 600E-6
+*SourceRiseTime  = 10E-12
+*SourceFallTime  = 10E-12
+SourceAmplitude = 1000E-6
+SourceRiseTime  = 1E-12
+SourceFallTime  = 1E-12
+TimeFirstStable = 20E-12
+WaitForStateChange = 40E-12
+VerilogStableTime = 10E-12
+VerilogWaitTime = 10E-12
+SlidingIntegratorLength = 12.5E-12
+PulseDetectThreshold = 0.5
+CTDependencyThreshold = 0.1E-12
+PulseFluxonFraction = 0.9
+MaxDelayChange = 0.75E-12
+InputChainDelay = 7.5E-12
+$End
+
+$DefaultLoadIn
+.SUBCKT defloadin 2 5 
+B1 1 6 jjmitll100 area=2.5 
+B2 4 8 jjmitll100 area=2.5 
+IB1 0 3 pwl(0 0 5p 350uA)
+L1 2 1 2p  
+L2 1 3 2p  
+L3 3 4 2p  
+L4 4 5 2p  
+LB1 7 6 1p  
+LB2 9 8 1p  
+Lp1 6 0 0.2p  
+Lp2 8 0 0.2p  
+RB1 1 7 3.88  
+RB2 4 9 3.88
+.model jjmitll100 jj(rtype=1, vg=2.8mV, cap=0.07pF, r0=160, rn=16, icrit=0.1mA)
+.ends defloadin
+$End
+
+$DefaultLoadOut
+.SUBCKT defloadout 26 9 
+*.SUBCKT mitll_or 26     28   12      9 
+*==============  Begin SPICE netlist of main design ============
+RIX        28   0  2
+ROX        12   0  2
+B01        18         19         jmitll     area=2.5
+B02        18         22         jmitll     area=2
+B03        20         21         jmitll     area=2.5
+B04        20         23         jmitll     area=2
+B05        24         25         jmitll     area=3
+B06        11         13         jmitll     area=2.6
+B07        15         2          jmitll     area=2
+B08        1          3          jmitll     area=2
+B09        6          7          jmitll     area=2.5
+B10        35         24         jmitll     area=3.25
+IB01       0          29         pwl(0      0 5p 440u)
+IB02       0          10         pwl(0      0 5p 110u)
+IB03       0          16         pwl(0      0 5p 200u)
+IB04       0          5          pwl(0      0 5p 120u)
+L01        26         18         3p        
+L02        22         27         1.9p      
+L03        28         20         3p        
+L04        23         27         1.9p      
+L05        27         29         0.6p      
+L06        29         35         2.1p      
+L07        24         10         0.4p      
+L08        10         2          7.362p    
+L09        2          1          2.27p     
+L10        16         15         1.43p     
+L11        11         16         3.13p     
+L12        12         11         2.5p      
+L13        1          5          3.2p      
+L14        5          6          1.1p      
+L15        6          9          3.291p    
+LP01       19         0          0.2p      
+LP03       21         0          0.2p      
+LP05       25         0          0.2p      
+LP06       0          13         0.122p    
+LP08       0          3          0.117p    
+LP09       0          7          0.151p    
+LRB01      31         19         1p        
+LRB02      33         22         1p        
+LRB03      30         21         1p        
+LRB04      34         23         1p        
+LRB05      32         25         1p        
+LRB06      14         13         1p        
+LRB07      17         2          1p        
+LRB08      4          3          1p        
+LRB09      8          7          1p        
+LRB10      36         24         1p        
+RB01       18         31         3.88      
+RB02       18         33         4.85      
+RB03       20         30         3.88      
+RB04       20         34         4.85      
+RB05       24         32         3.23      
+RB06       14         11         3.73      
+RB07       17         15         4.85      
+RB08       4          1          4.85      
+RB09       8          6          3.88      
+RB10       35         36         2.98      
+.model jmitll jj(rtype=1, vg=2.8mV, cap=0.07pF, r0=160, rn=16, icrit=0.1mA)
+.ends defloadout
+$End
+
+$DefaultSink
+.SUBCKT defsink 1
+R1 1 0 2
+.ends defsink
+$End
+
+$DefaultSource
+.SUBCKT gensource 8 11 
+B1   1  2  jjmitll100 area=2.25 
+B2   3  4  jjmitll100 area=2.25 
+B3   5  6  jjmitll100 area=2.5 
+IB1  0  2  pwl(0 0 5p 275uA)
+IB2  0  5  pwl(0 0 5p 175uA)
+L1   8  7  1p  
+L2   7  0  3.9p  
+L3   7  1  0.6p  
+L4   2  3  1.1p  
+L5   3  5  4.5p  
+L6   5  11 2p  
+Lp2  4  0  0.2p  
+Lp3  6  0  0.2p  
+LRB1 9  2  1p  
+LRB2 10 4  1p  
+LRB3 12 6  1p  
+RB1  1  9  4.31  
+RB2  3  10 4.31  
+RB3  5  12 3.88  
+.model jjmitll100 jj(rtype=1, vg=2.8mV, cap=0.07pF, r0=160, rn=16, icrit=0.1mA)
+.ends gensource
+$End

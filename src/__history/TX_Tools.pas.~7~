@@ -1,0 +1,156 @@
+unit TX_Tools;
+
+{
+    Unit TX_Tools (for use with TimEx)
+    Copyright (c) 2016-2018 Coenrad Fourie
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+}
+
+{$IFDEF Unix}
+{$mode objfpc}{$H+}
+{$ENDIF Unix}
+
+interface
+
+uses
+
+  Classes, SysUtils,
+{$IFDEF Unix}
+  Process,
+{$ENDIF Unix}
+{$IFDEF MSWINDOWS}
+  Windows, ShellAPI, Vcl.Forms,
+{$ENDIF MSWINDOWS}
+  TX_Globals, TX_FileOut, TX_FileIn, TX_Math, TX_Strings;
+
+procedure CrossPlatformDeleteFile(Filename: string);
+procedure CrossPlatformRenameFile(oldFileName, newFileName: string);
+function CurrentTime : double;
+procedure ExecuteShellApp(esaName, esaParamStr : string);
+
+implementation
+
+var
+  {$IFDEF MSWINDOWS}
+  SEInfo: TShellExecuteInfo;
+  ExitCode: DWORD;
+  {$ENDIF MSWINDOWS}
+  ExecuteFile, ExecuteShellFile, ParamString, StartInString : string;
+
+
+{ ------------------------- CrossPlatformDeleteFile -------------------------- }
+procedure CrossPlatformDeleteFile(Filename: string);
+
+begin
+{$IFDEF MSWINDOWS}
+  DeleteFile(PChar(Filename));
+{$ELSE}
+  DeleteFile(Filename);
+{$ENDIF}
+end; //CrossPlatformDeleteFile
+{ ------------------------- CrossPlatformRenameFile -------------------------- }
+procedure CrossPlatformRenameFile(oldFileName, newFileName: string);
+
+begin
+{$IFDEF MSWINDOWS}
+  DeleteFile(PChar(newFileName));
+  RenameFile(oldFileName, newFileName);
+{$ELSE}
+  RenameFile(oldFileName, newFileName);
+{$ENDIF}
+end; //CrossPlatformRenameFile
+
+{$IFDEF MSWINDOWS}
+{ ------------------------- ExecuteShellAppBorland --------------------------- }
+procedure ExecuteShellAppBorland;
+
+begin
+  FillChar(SEInfo, SizeOf(SEInfo), 0);
+  SEInfo.cbSize := SizeOf(TShellExecuteInfo);
+  with SEInfo do begin
+    fMask := SEE_MASK_NOCLOSEPROCESS;
+    Wnd := Application.Handle;
+    lpFile := PChar(ExecuteShellFile);
+    lpParameters := PChar(ParamString);
+    lpDirectory := PChar(StartInString);
+    nShow := SW_HIDE;
+  end;
+  if ShellExecuteEx(@SEInfo) then
+  begin
+    repeat
+      while WaitForSingleObject(SEInfo.hProcess, 1) <> WAIT_OBJECT_0 do
+        Application.ProcessMessages;
+      GetExitCodeProcess(SEInfo.hProcess, ExitCode);
+    until (ExitCode <> STILL_ACTIVE) or
+	  Application.Terminated;
+  end
+  else ExitWithHaltCode('Shell application "' + ExecuteShellFile + ' ' + ParamString+'" did not execute.',8);
+end; // ExecuteShellAppBorland
+
+{$ELSE}
+{ --------------------------- ExecuteShellAppFPC ----------------------------- }
+procedure ExecuteShellAppFPC;
+
+var
+  SAProcess : TProcess;
+begin
+  SAProcess := TProcess.Create(nil);
+  SAProcess.CommandLine := ExecuteShellFile + ' ' + ParamString;
+  SAProcess.Options := SAProcess.Options + [poWaitOnExit];
+  SAProcess.ShowWindow:= swoHide;
+  try
+    SAProcess.Execute;
+    SAProcess.Free;
+  except
+    begin
+      SAProcess.Free;
+      ExitWithHaltCode('Shell application "' + ExecuteShellFile + ' ' + ParamString+'" did not execute.',8);
+    end;
+  end;
+end; // ExecuteShellAppFPC
+
+{$ENDIF}
+{ ---------------------------- ExecuteShellApp ------------------------------- }
+procedure ExecuteShellApp(esaName, esaParamStr : string);
+
+begin
+  ParamString := esaParamStr; StartInString := '';
+  ExecuteShellFile := 'Platform not recognised!';
+{$IFDEF MSWINDOWS}
+  ExecuteShellFile := esaName+'.exe';
+  ExecuteShellAppBorland;
+{$ENDIF}
+{$IFDEF Unix}
+  ExecuteShellFile := esaName;
+  ExecuteShellAppFPC;
+{$ENDIF}
+
+end; // ExecuteShellApp
+{---------------------------------------------CurrentTime---}
+function CurrentTime : double;
+
+begin
+
+{$IFDEF MSWINDOWS}
+  CurrentTime := GetTime
+{$ELSE}
+  CurrentTime := Time
+{$ENDIF}
+
+end; // CurrentTime
+
+
+
+end.

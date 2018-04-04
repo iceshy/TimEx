@@ -1,0 +1,27 @@
+=============================================
+TimEx Change Log - v2.00
+=============================================
+
+v2.03.00 - 23 March 2018
+* Fixed:   Default value for "area" parameter set to 1.0 if not defined for a JJ.
+* Fixed:   Error if spice values read from text with spaces after "=".
+* Changed: Open-source license from GPL3 to MIT.
+
+v2.02.00 - 12 March 2018
+* Added:   Support for fabrication tolerance analysis - global and local variations.
+* Added:   Gauss(mean,stddev) function to parameter definitions.
+* Added:   Support for noise analysis.
+* Added:   SimTimeStep parameter to adjust JSIM simulation time step.
+
+v2.01.00 - 22 February 2018
+* Added:   "pulseFluxonFraction" parameter to reduce required pulse integration area
+           for PTL interconnects.
+* Added:   Support for writing out integration curves.
+* Added:   '-v' switch for verbose mode.
+* Added:   $Variable block in DUT spice deck, and parameterized variable support
+* Added:   Swept variables.
+* Fixed:   Error in the equation for Josephson dynamic inductance.
+* Changed: Load cell split into input and output cells - each defined separately
+
+v1.00 - 1 October 2016
+* First release of TimEx

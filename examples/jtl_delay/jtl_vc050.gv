@@ -1,0 +1,5 @@
+digraph jtl_vc050 {
+  node [shape = circle];
+  State0 -> State0 [label="in\nOUT",arrowhead=normalnonedot];
+  State0 [label="0"];
+}

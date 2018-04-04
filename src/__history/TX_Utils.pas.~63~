@@ -1,0 +1,111 @@
+unit TX_Utils;
+
+{
+    Unit TX_Utils (for use with TimEx)
+    Copyright (c) 2016-2018 Coenrad Fourie
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+}
+
+interface
+
+uses
+  SysUtils, Math, TX_Globals, TX_Math, TX_Strings, StrUtils;
+
+procedure WriteIntegrationTrace(wDatFileName,wOutFileName : string; wTrace : integer);
+procedure CloseWithHaltCode(EText : string; HCode : integer);
+
+implementation
+
+{ -------------------------- WriteIntegrationTrace --------------------------- }
+procedure WriteIntegrationTrace(wDatFileName,wOutFileName : string; wTrace : integer);
+var
+  w1 : Integer;
+  wTimeInFile, wTimeStep, wTimePrev, wAcc : Double;
+  wText : String;
+  wDone : Boolean;
+  wSlidingWindow : array of Double;
+  wDatFile, wOutFile : TextFile;
+begin
+  AssignFile(wDatFile,wDatFileName);
+  {$I-}
+  Reset(wDatFile);
+  {$I+}
+  if IOResult <> 0 then        // problem with .dat file
+    ExitWithHaltCode('Error while trying to open JSIM output file "'+wDatFileName+'". Abort.', 102);
+  ReadLn(wDatFile,wText);  // First line of .dat file contains variable identifiers.
+
+  wTimeStep := -1; // Startup
+  wTimePrev := -1;
+  repeat
+    ReadLn(wDatFile,wText);
+    if CheckIfReal(ReadStrFromMany(1,wText,' ')) then
+      wTimeInFile := StrToFloat(ReadStrFromMany(1,wText,' '));
+    if (wTimeInFile > 1e-20) and (wTimeStep < 0) then
+      if wTimePrev < 0 then
+      begin
+        wTimePrev := wTimeInFile;
+      end
+      else
+        wTimeStep := wTimeInFile-wTimePrev;
+  until (wTimeStep > 0) or (eof(wDatFile));
+  if (eof(wDatFile) or (wTimeStep < 1.1e-20)) then
+    begin
+      CloseFile(wDatFile);                               // Not good. Return 0.
+      Exit;
+    end;
+  Reset(wDatFile);
+  ReadLn(wDatFile,wText);
+  AssignFile(wOutFile,wOutFileName);
+  Rewrite(wOutFile);
+//  fAcc := 0;
+  wDone := False;
+//  fThresholdTime := -1;
+  SetLength(wSlidingWindow,round(slidingIntegratorLength/wTimeStep));
+  for w1 := 0 to High(wSlidingWindow) do
+    wSlidingWindow[w1] := 0;
+  while not wDone do
+  begin
+    ReadLn(wDatFile,wText);
+    if eof(wDatFile) then
+    begin
+      wDone := True;
+      CloseFile(wDatFile);
+      CloseFile(wOutFile);
+      Exit;
+    end;
+    for w1 := 0 to (High(wSlidingWindow)-1) do  // Slide back
+      wSlidingWindow[w1] := wSlidingWindow[w1+1];
+//      if CheckIfReal(ReadStrFromMany(1,fText,' ')) then
+    wTimeInFile := StrToFloat(ReadStrFromMany(1,wText,' '));
+    wSlidingWindow[High(wSlidingWindow)] := StrToFloat(ReadStrFromMany(wTrace,wText,' '));
+    wAcc := 0;
+    for w1 := 1 to High(wSlidingWindow) do // Integrate
+      wAcc := wAcc + (wSlidingWindow[w1]+wSLidingWindow[w1-1])/2*wTimeStep;
+    WriteLn(wOutFile,FloatToStrF(wTimeInFile,ffGeneral,6,4)+' '+FloatToStrF(wAcc,ffGeneral,6,4)+' '+FloatToStrF(wSlidingWindow[High(wSlidingWindow)],ffGeneral,6,4));
+  end;
+  SetLength(wSlidingWindow,0);
+  CloseFile(wDatFile);
+  CloseFile(wOutFile);
+end; // WriteIntegrationTrace
+{ --------------------------- CloseWithHaltCode ------------------------------ }
+procedure ExitWithHaltCode(EText : string; HCode : integer);
+// Writes text to both the screen and an output file, then closes file and halts
+begin
+  WriteLn('('+IntToStr(HCode)+') '+EText);
+  CloseFile(OutFile);
+  Halt(HCode);
+end; // ExitWithHaltCode
+
+end.
