@@ -42,7 +42,7 @@ unit TX_Cycles;
 interface
 
 uses
-  SysUtils, Math, TX_FileIn, TX_FileOut, TX_Strings, TX_Math, TX_Globals;
+  SysUtils, TX_FileIn, TX_FileOut, TX_Strings, TX_Globals;
 
 function GetCycleCount : integer;
 procedure CycleStoreFile;
@@ -64,7 +64,7 @@ type
   DoubleStrArrayType = array of array of Str50;
 
 var
-  cv, ck, componentTotal, portTotal, validPathCount, maxI, maxJ : integer;
+  ck, componentTotal, portTotal, maxI, maxJ : integer;
   portList : StrArrayType;
   nameList : nameListType;
   lookup_ports, adj, cOut : DoubleIntArrayType;
@@ -556,7 +556,6 @@ var
   cElementAdded : Boolean;
 
 begin
-  cv := 0;
   componentTotal := GetCycleCount;
   SetLength(portList,componentTotal*2);
   portTotal := 0;
@@ -584,7 +583,6 @@ begin
 
   maxI := 0;
   maxJ := 0;
-  validPathCount := 0;
   SetLength(cOut,HRN *portTotal, portTotal+2);
   for ci := 0 to (HRN*portTotal-1) do
     for cj := 0 to (portTotal + 1) do

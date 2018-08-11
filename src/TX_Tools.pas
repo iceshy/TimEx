@@ -42,7 +42,7 @@ uses
 {$IFDEF MSWINDOWS}
   Windows, ShellAPI, Vcl.Forms,
 {$ENDIF MSWINDOWS}
-  TX_Globals, TX_FileOut, TX_FileIn, TX_Math, TX_Strings;
+  TX_Globals, TX_FileOut;
 
 procedure CrossPlatformDeleteFile(Filename: string);
 procedure CrossPlatformRenameFile(oldFileName, newFileName: string);
@@ -120,6 +120,7 @@ begin
   SAProcess.Options := SAProcess.Options + [poWaitOnExit];
   SAProcess.ShowWindow:= swoHide;
   try
+    WriteLn('Executing '+ExecuteShellFile+' '+ParamString);
     SAProcess.Execute;
     SAProcess.Free;
   except

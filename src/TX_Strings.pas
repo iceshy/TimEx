@@ -30,7 +30,7 @@ unit TX_Strings;
 interface
 
 uses
-  SysUtils, Math, TX_Math, TX_Globals, StrUtils;
+  SysUtils, TX_Math, TX_Globals;
 
 function ReadSpiceVariableValue(rv : string) : Double;
 procedure SetSpiceVariableValue(svName : string; svValue : double);
@@ -153,14 +153,12 @@ end;
 function EvaluateSpiceExpression(eeTest : string; leadingMinus : Double) : Double;
 // Recursively find value of expression. Operator prededence : / * + -
 var
-  term1, term2, eeStr, eeTempStr1, eeTempStr2 : string;
+  eeStr, eeTempStr1, eeTempStr2 : string;
   t1, t2, fVal : double;
-  ee1, ee2, popen, pclose : integer;
-  pOpenFound, pClosedFound, noFunctions : boolean;
-  op : char;
+  ee1, ee2 : integer;
+  pClosedFound, noFunctions : boolean;
 
 begin
-  term1 := ''; term2 := '';
   eeStr := LowerCase(StripSpaces(eeTest));
   eeStr := ReplacePlusMinusArithmeticOps(eeStr);
   // Process functions
@@ -432,11 +430,11 @@ end; // ConvertToValue
 function ReadStrFromMany(txIndex : integer; txtext, txSeparator : string) : string;
 
 var
-  txOrig, txRes : string;
+  txOrig : string;
   tx1 : Integer;
 
 begin
-  txOrig := txtext; txRes := ' '; // Don't send back an empty string...
+  txOrig := txtext;
   for tx1 := 1 to (txIndex-1) do
   begin
     if pos(txSeparator,txOrig) = 0 then

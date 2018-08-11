@@ -3,16 +3,16 @@ program TimEx;
 {*******************************************************************************
 *                                                                              *
 * Author    :  Coenrad Fourie                                                  *
-* Version   :  2.0                                                             *
-* Date      :  April 2018
+* Version   :  2.03                                                            *
+* Date      :  August 2018                                                     *
 * Copyright (c) 2016-2018 Coenrad Fourie                                       *
 *                                                                              *
 * Timing extractor and Verilog HDL file writer for SFQ logic cells.            *
 * Developed originally under IARPA-BAA-14-03  (v1.0)                           *
 * Improved by Stellenbosch University under IARPA-BAA-16-03 (v2.0)             *
 *                                                                              *
-* Last modification: 9 February 2017                                           *
-*      Change to verilog models applied                                        *
+* Last modification: 11 August 2018                                            *
+*      Support for SDF timing files, vcd_assert and JoSIM added                *
 *      Linux build improved                                                    *
 *      Parameter sweeps, PTL interconnects and parameter functions added       *
 *                                                                              *
@@ -63,18 +63,17 @@ uses
   TX_Cycles in 'TX_Cycles.pas',
   TX_Utils in 'TX_Utils.pas';
 
-var
-  StartTime, StartDate : TDateTime;
-
 { -------------------------------- BlurbHelp --------------------------------- }
 procedure BlurbHelp;
 
 begin
   Writeln; WriteLn('TimeEx extracts timing parameters from an SFQ logic cell defined');
-  WriteLn('in a jsim deck. It is assumed that the nominal circuit works correctly.');
-  WriteLn('The first parameter MUST be the jsim file of the DUT (.js; .cir).');
+  WriteLn('in a JoSIM deck. It is assumed that the nominal circuit works correctly.');
+  WriteLn('The first parameter MUST be the JoSIM file of the DUT (.js; .cir).');
   WriteLn;
   WriteLn(' Options: (Case senstive arguments.)');
+  WriteLn('  -a              = Select JSIM_n as the simulation engine.');
+  WriteLn('  -c              = Write self-contained Verilog module (no SDF files).');
   WriteLn('  -d filename.txt = Definition file.');
   WriteLn('  -e filename.js  = Circuit deck for source cell.');
   WriteLn('  -L filename.js  = Circuit deck for output load cell.');
@@ -82,10 +81,15 @@ begin
   WriteLn('  -o filename.txt = Write state map to text file.');
   WriteLn('  -s filename.js  = Circuit deck for sink cell.');
   WriteLn('  -v              = Verbose mode on.');
-  WriteLn('  -x              = Execute jsim_n, iverilog, vvp and dot on output files.');
-  WriteLn; WriteLn('For more detail, see ''L.C. Muller, and C.J. Fourie, Automated State');
-  WriteLn('Machine and timing characteristic extraction for RSFQ circuits, IEEE Trans.');
-  WriteLn('Appl. Supercond., vol. 24, 1300110, Feb. 2014.''');  WriteLn;
+  WriteLn('  -x              = Execute JoSIM/JSIM_n, iverilog, vvp and dot on output');
+  WriteLn('                    files.');
+  WriteLn; WriteLn('For more detail, see:');
+  WriteLn('[1] L.C. Muller, and C.J. Fourie, Automated State Machine and timing');
+  WriteLn('characteristic extraction for RSFQ circuits, IEEE Trans. Appl. Supercond.,');
+  WriteLn('vol. 24, 1300110, 2014.');
+  WriteLn('[2] C.J. Fourie, Extraction of SFQ circuit Verilog models through flux loop');
+  WriteLn('analysis, IEEE Trans. Appl. Supercond., vol. 28, 1300811, 2018.');
+  WriteLn;
   WriteLn; WriteLn('For user support, e-mail your questions to coenrad@sun.ac.za'); WriteLn;
 end; // BlurbHelp
 { -------------------------------- Initiate ---------------------------------- }
@@ -95,8 +99,6 @@ var
   i1 : Integer;
 
 begin
-  StartTime := CurrentTime;                // "Time" function is not Linux-friendly
-  StartDate := Date;
   FormatSettings.DecimalSeparator := '.';  // Make SURE that OS localization is overloaded with our default,
         // otherwise floating point numbers cannot be read from strings in France / Germany
   Randomize;
@@ -578,12 +580,14 @@ procedure CalculateCriticalTimings;
 var
   cSweep, cSweepStep, cState, cIn, cOut, cIn2, cExpectedState, c1, c2, cCountIterations, cOutFailed, cNumSweepSteps : Integer;
   cTimeToIn2, cTimeToIn2LastWorking, cTimeToIn2LastFail, cTimeIn, cTimeIn2, cTimeOutFromIn: double;
-  cTimeOutFromIn2, cTimeFailed, cSweepValue, cSweepStepValClosestToNom, cSweepNomVal : Double;
+  cTimeOutFromIn2, cSweepValue, cSweepStepValClosestToNom, cSweepNomVal : Double;
   foundCT, cUnaccountedOut, foundTBLimit, foundCircuitFail, functionalAtStep, ignorePulse : Boolean;
-  cPulseRepulsionStr, cLastDot : string;
+  cPulseRepulsionStr : string;
 
 begin
   cTimeIn2 := 0;
+  cSweepNomVal := 0;
+  cSweepStepValClosestToNom := 0;
 //  for cSweep := 0 to High(sweeps) do
   SetLength(sweepNominal,1);
   sweepNominal[0] := 1;
@@ -650,7 +654,6 @@ begin
                 cExpectedState := states[states[cState].inputResponse[cIn].toState].inputResponse[cIn2].toState; // Assume everything OK if we end up in this state.
                 cCountIterations := 0;
                 cOutFailed := -1;
-                cTimeFailed := -1;
                 for c1 := 0 to High(dutInput) do
                 begin
                   SetLength(inputTimes[c1],Length(states[cState].InputsToReach[c1])); // Copy the inputs required to get here into inputTimes
@@ -745,7 +748,7 @@ begin
                           cUnaccountedOut := False; // It is now accounted for
                           if abs(states[cState].inputResponse[cIn].outTimes[c1,cSweepStep]-(cTimeOutFromIn-cTimeIn)) > MaxDelayChange then // outside MaxDelayChange range.
                           begin
-                            cTimeFailed := states[cState].inputResponse[cIn].outTimes[c1,cSweepStep]-(cTimeOutFromIn-cTimeIn); // Value of time shift detected.
+//                            cTimeFailed := states[cState].inputResponse[cIn].outTimes[c1,cSweepStep]-(cTimeOutFromIn-cTimeIn); // Value of time shift detected.
                             cOutFailed := c1;
                             foundCT := True; // We have just found a critical timing.
                           end;
@@ -759,7 +762,7 @@ begin
                             else
                               if abs(states[cState].inputResponse[cIn].outTimes[c1,cSweepStep]-(cTimeOutFromIn2-cTimeIn2)) > MaxSelfDelayChange then // outside MaxDelayChange range.
                               begin
-                                cTimeFailed := states[cState].inputResponse[cIn].outTimes[c1,cSweepStep]-(cTimeOutFromIn2-cTimeIn2); // Value of time shift detected.
+//                                cTimeFailed := states[cState].inputResponse[cIn].outTimes[c1,cSweepStep]-(cTimeOutFromIn2-cTimeIn2); // Value of time shift detected.
                                 cOutFailed := c1;
                                 foundCT := True; // We have just found a critical timing from pulse repulsion.
                                 cPulseRepulsionStr := '(pulse repulsion) ';
@@ -774,7 +777,7 @@ begin
                           cUnaccountedOut := False; // It is now accounted for
                           if abs(states[states[cState].inputResponse[cIn].toState].inputResponse[cIn2].outTimes[c1,cSweepStep]-(cTimeOutFromIn2-cTimeIn2)) > MaxDelayChange then // outside MaxDelayChange range.
                           begin
-                            cTimeFailed := states[states[cState].inputResponse[cIn].toState].inputResponse[cIn2].outTimes[c1,cSweepStep]-(cTimeOutFromIn2-cTimeIn2); // Value of time shift detected.
+//                            cTimeFailed := states[states[cState].inputResponse[cIn].toState].inputResponse[cIn2].outTimes[c1,cSweepStep]-(cTimeOutFromIn2-cTimeIn2); // Value of time shift detected.
                             cOutFailed := c1;
                             foundCT := True; // We have just found a critical timing.
                           end;
@@ -846,8 +849,7 @@ end; // CalculateCriticalTimingsMethod1
 procedure RecalculateDelayTimes;
 var
   r1, r2, r3, rIn, rState : Integer;
-  rTimeTotal, rTimeIn, rTimeOut, fTimeInFalse : Double;
-  foundNewState, foundNewStateFlag : Boolean;
+  rTimeTotal, rTimeIn, rTimeOut : Double;
   fStr : string;
 
 begin

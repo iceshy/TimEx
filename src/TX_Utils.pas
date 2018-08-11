@@ -30,7 +30,7 @@ unit TX_Utils;
 interface
 
 uses
-  SysUtils, Math, TX_Globals, TX_Math, TX_Strings, StrUtils;
+  SysUtils, TX_Globals, TX_Math, TX_Strings;
 
 procedure WriteIntegrationTrace(wDatFileName,wOutFileName : string; wTrace : integer);
 procedure CloseWithHaltCode(EText : string; HCode : integer);

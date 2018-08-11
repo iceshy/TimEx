@@ -33,7 +33,7 @@ uses
 {$IFDEF Unix}
   Process,
 {$ENDIF Unix}
-  SysUtils, Math, TX_FileOut, TX_Math, TX_Globals, TX_Strings;
+  SysUtils, TX_FileOut, TX_Math, TX_Globals, TX_Strings;
 
 procedure Swop(var i1, i2 : integer);
 procedure LnTABreplace(var rLnText : string);

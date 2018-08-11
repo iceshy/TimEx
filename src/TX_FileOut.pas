@@ -30,7 +30,7 @@ unit TX_FileOut;
 interface
 
 uses
-  SysUtils, Math, TX_Globals, TX_Math, TX_Strings, TX_Utils;
+  SysUtils, Math, TX_Globals, TX_Math, TX_Strings;
   
 procedure EchoLn(EText : string); // writes text to both the screen and file SolFile
 procedure EchoStr(EText : string);
@@ -210,11 +210,10 @@ type
                   end;
   TestSetType = array of TestSetRecord;
 var
-  vm1, vmState, vmIn, vmIn2, vmOut, vmStateNow, vmWait, vmTotalTime, vmFirstTime, vmStep : Integer;
-  vmNumSweepSteps, vmSweepStep : integer;
-  vmSweepValue, vmSweepValueNext, vmValue, vmMaxDelay : double;
+  vm1, vmState, vmIn, vmIn2, vmOut, vmStateNow, vmWait, vmTotalTime, vmFirstTime : Integer;
+  vmMaxDelay : double;
   vmBool : Boolean;
-  vmStr, vmCompareCharLow, vmCompareCharHigh : String;
+  vmStr : String;
   vmFile : TextFile;
   testSet : TestSetType;
 
@@ -643,9 +642,9 @@ type
                   end;
   TestSetType = array of TestSetRecord;
 var
-  vm1, vmState, vmIn, vmIn2, vmOut, vmStateNow, vmWait, vmTotalTime, vmFirstTime, vmStep : Integer;
+  vm1, vmState, vmIn, vmIn2, vmOut, vmStateNow, vmWait, vmTotalTime, vmFirstTime : Integer;
   vmNumSweepSteps, vmSweepStep : integer;
-  vmSweepValue, vmSweepValueNext, vmValue, vmMaxDelay : double;
+  vmSweepValue, vmSweepValueNext, vmMaxDelay : double;
   vmBool : Boolean;
   vmStr, vmCompareCharLow, vmCompareCharHigh : String;
   vmFile : TextFile;

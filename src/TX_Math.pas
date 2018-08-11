@@ -44,11 +44,6 @@ function EvaluateFunctionGauss(eStr : string) : double;
 
 implementation
 
-const
-  MachineEpsilon = 5E-16;
-  MaxRealNumber = 1E300;
-  MinRealNumber = 1E-300;
-
 { ----------------------------- CheckIfInteger ------------------------------- }
 function CheckIfInteger(TestStr : string) : boolean;
 
