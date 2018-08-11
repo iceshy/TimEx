@@ -2,9 +2,12 @@
 TimEx Change Log - v2.00
 =============================================
 
-v2.03.00 - 23 March 2018
+v2.03.00 - 11 August 2018
+* Added:   Support for vcd_assert, SDF file output.
+* Added:   Support for JoSIM.
 * Fixed:   Default value for "area" parameter set to 1.0 if not defined for a JJ.
 * Fixed:   Error if spice values read from text with spaces after "=".
+* Fixed:   Compiler warnings cleaned up.
 * Changed: Open-source license from GPL3 to MIT.
 
 v2.02.00 - 12 March 2018
