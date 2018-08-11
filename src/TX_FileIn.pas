@@ -50,9 +50,6 @@ function FindNthPulseTime(fFileName : String; fPulseNumber : integer; fStartTime
 
 implementation
 
-var
-  fi1 : Integer;
-
 { ---------------------------------- Swop ------------------------------------ }
 procedure Swop(var i1, i2 : integer);
 var            // Swops two integers;
@@ -113,12 +110,12 @@ begin
   // Firstly, get the JJ models.
   for rev1 := 0 to High(SpiceDUTLines) do
   begin
-    if LowerCase(copy(spiceDUTLines[rev1],1,6)) = '.model' then
-      if LowerCase(copy(ReadStrFromMany(3,spiceDUTLines[rev1],' '),1,2)) = 'jj' then // JJ model
+    if LowerCase(copy(String(spiceDUTLines[rev1]),1,6)) = '.model' then
+      if LowerCase(copy(ReadStrFromMany(3,String(spiceDUTLines[rev1]),' '),1,2)) = 'jj' then // JJ model
       begin
         SetLength(jjModels,Length(jjModels)+1);
-        jjModels[High(jjModels)].Name := LowerCase(ReadStrFromMany(2,spiceDUTLines[rev1],' '));
-        revStr := ReadValueAfterEqualSign(LowerCase(spiceDUTLines[rev1]),'icrit');
+        jjModels[High(jjModels)].Name := ANSIString(LowerCase(ReadStrFromMany(2,String(spiceDUTLines[rev1]),' ')));
+        revStr := ReadValueAfterEqualSign(LowerCase(String(spiceDUTLines[rev1])),'icrit');
 //        jjModels[High(jjModels)].Value := StringToDouble(revStr);
         jjModels[High(jjModels)].Value := ConvertToValue(revStr);
       end;
@@ -127,28 +124,28 @@ begin
   begin
     for rev2 := 0 to High(spiceDUTLines) do
     begin
-      revText := ReadStrFromMany(1,spiceDUTLines[rev2],' ');
-      if revText = elements[rev1].Name then
+      revText := ReadStrFromMany(1,String(spiceDUTLines[rev2]),' ');
+      if revText = String(elements[rev1].Name) then
       begin
         if elements[rev1].Name[1] = 'l' then  // inductor
         begin
-          revStr := ReadStrFromMany(4,spiceDUTLines[rev2],' '); // Read the value
+          revStr := ReadStrFromMany(4,String(spiceDUTLines[rev2]),' '); // Read the value
           elements[rev1].Value := ConvertToValue(revStr);
         end;
         if elements[rev1].Name[1] = 'b' then  // junction
         begin
-          revStr := ReadValueAfterEqualSign(LowerCase(spiceDUTLines[rev2]),'area');  // Read the junction area
+          revStr := ReadValueAfterEqualSign(LowerCase(String(spiceDUTLines[rev2])),'area');  // Read the junction area
           if revStr <> '' then
             revValue := ConvertToValue(revStr)
           else
             revValue := 1.0; // default
-          revStr := LowerCase(ReadStrFromMany(4,spiceDUTLines[rev2],' ')); // Read the JJ model name
+          revStr := LowerCase(ReadStrFromMany(4,String(spiceDUTLines[rev2]),' ')); // Read the JJ model name
           revCrit := 0;
           for rev3 := 0 to High(jjModels) do
-            if jjModels[rev3].Name = revStr then
+            if String(jjModels[rev3].Name) = revStr then
           revCrit := jjModels[rev3].Value;
           if revCrit = 0 then
-            ExitWithHaltCode('No Ic read for Josephson junction in DUT card "'+SpiceDUTLines[rev2]+'".',101);
+            ExitWithHaltCode('No Ic read for Josephson junction in DUT card "'+String(SpiceDUTLines[rev2])+'".',101);
           elements[rev1].Value := revValue*revCrit;
         end;
       end;
@@ -165,8 +162,12 @@ var
   rTimeInFile, rTimeInFilePrev : Double;
   rFile : TextFile;
   rCrossRef : Array of Integer;
+  rSeparator : String;
 
 begin
+  rSeparator := ',';
+  if useJSIM then
+    rSeparator := ' ';
   AssignFile(rFile,rFileName);
   {$I-}
   Reset(rFile);
@@ -175,34 +176,49 @@ begin
     ExitWithHaltCode('Error while trying to open JSIM output file "'+rFileName+'". Abort.', 102);
   ReadLn(rFile,rText);  // First line of .dat file contains variable identifiers. First of those MUST be time.
   rText := LowerCase(rText);
-  if not (ReadStrFromMany(1,rText,' ') = 'time') then
+  if not (ReadStrFromMany(1,rText,rSeparator) = 'time') then
     ExitWithHaltCode('Time is not the first variable in '+rFileName+'. Simulation error?',103);
   SetLength(rCrossRef,Length(elements)); // rCrossRef[n] holds the column number of the nth element's current
   for r1 := 0 to High(rCrossRef) do
     rCrossRef[r1] := -1;  // Value to indicate unindexed
-  for r1 := 2 to CountSubstrings(rText,' ') do
+  for r1 := 2 to CountSubstrings(rText,rSeparator) do
   begin
-    rVarName := ReadStrFromMany(r1,rText,' ');
-    if Pos('xdut_',rVarName) > 0 then
-      Delete(rVarName,1,5);  // Delete "XDUT_" from every variable name
-    if Pos('_i',rVarName) > 0 then    // delete the "_I" a the end, otherwise the names don't match elements. Also, this tests if it IS CURRENT.
+    rVarName := ReadStrFromMany(r1,rText,rSeparator);
+    if useJSIM then
     begin
-      Delete(rVarName,pos('_i',rVarName),Length(rVarName)-2);
-      for r2 := 0 to High(elements) do
-        if elements[r2].Name = rVarName then
-          rCrossRef[r2] := r1; // Link to column in .dat file
+      if Pos('xdut_',rVarName) > 0 then
+        Delete(rVarName,1,5);  // Delete "XDUT_" from every variable name
+      if Pos('_i',rVarName) > 0 then    // delete the "_I" a the end, otherwise the names don't match elements. Also, this tests if it IS CURRENT.
+      begin
+        Delete(rVarName,pos('_i',rVarName),Length(rVarName)-2);
+        for r2 := 0 to High(elements) do
+          if elements[r2].Name = ANSIString(rVarName) then
+            rCrossRef[r2] := r1; // Link to column in .dat file
+      end;
+    end
+    else // JoSIM writes the variable names differently
+    begin
+      if Pos('device current',rVarName) > 0 then
+        Delete(rVarName,1,15);  // Delete "DEVICE CURRENT " from every variable name
+      if Pos('|xdut',rVarName) > 0 then    // delete the "_xdut" a the end, otherwise the names don't match elements.
+      begin
+        rVarname := copy(rVarName,1,pos('|xdut',rVarName)-1);
+        for r2 := 0 to High(elements) do
+          if elements[r2].Name = ANSIString(rVarName) then
+            rCrossRef[r2] := r1; // Link to column in .dat file
+      end;
     end;
   end;
   for r1 := 0 to High(rCrossRef) do
     if rCrossRef[r1] = -1 then  // No link to column. Then we can't continue!
-      ExitWithHaltCode('No current vector in '+rFileName+' for element '+UpperCase(elements[r1].Name)+'.',104);
+      ExitWithHaltCode('No current vector in '+rFileName+' for element '+UpperCase(String(elements[r1].Name))+'.',104);
   timeFound := False;
   rTextPrev := rText;  rTimeInFile := 0; rTimeInFilePrev := -1;
   repeat
     rTextPrev := rText;
     ReadLn(rFile,rText);
-    if CheckIfReal(ReadStrFromMany(1,rText,' ')) then
-      rTimeInFile := StrToFloat(ReadStrFromMany(1,rText,' '));
+    if CheckIfReal(ReadStrFromMany(1,rText,rSeparator)) then
+      rTimeInFile := StrToFloat(ReadStrFromMany(1,rText,rSeparator));
     if abs(rTime-rTimeInFile) > abs(rTime-rTimeInFilePrev) then // So, previous was minimum time;
       timeFound := True
     else
@@ -211,8 +227,8 @@ begin
   for r1 := 0 to High(elements) do
   begin
     elements[r1].Current := 0;
-    if CheckIfReal(ReadStrFromMany(rCrossRef[r1],rTextPrev,' ')) then        // The closest string to the right time is in rTextPrev. Use this.
-      elements[r1].Current := StrToFloat(ReadStrFromMany(rCrossRef[r1],rTextPrev,' '));
+    if CheckIfReal(ReadStrFromMany(rCrossRef[r1],rTextPrev,rSeparator)) then        // The closest string to the right time is in rTextPrev. Use this.
+      elements[r1].Current := StrToFloat(ReadStrFromMany(rCrossRef[r1],rTextPrev,rSeparator));
   end;
   CloseFile(rFile);
 end; // ReadCurrentValues
@@ -228,7 +244,7 @@ var
 begin
   rv1 := 0;
   repeat
-    rvStr := rvDeckLines[rv1];
+    rvStr := String(rvDeckLines[rv1]);
     inc(rv1);
     rvPar := ReadStrFromMany(1, rvStr, ' ');
     if rvPar = '.param' then
@@ -272,7 +288,7 @@ begin
           begin
             rvNum := -1;
             for rvV := 0 to High(spiceVariables) do
-              if spiceVariables[rvV].Name = rvPar then
+              if spiceVariables[rvV].Name = ANSIString(rvPar) then
                 rvNum := rvV;
             if rvNum = -1 then
             begin
@@ -281,12 +297,12 @@ begin
             end;
             with spiceVariables[rvNum] do
             begin
-              Name := rvPar;
+              Name := ANSIString(rvPar);
               Value := ConvertToValue(rvSubStr);
             end;
             for rv2 := 0 to High(sweeps) do
             begin
-              if LowerCase(sweeps[rv2].SweepVar) = rvPar then
+              if LowerCase(String(sweeps[rv2].SweepVar)) = rvPar then
                 sweeps[rv2].Nominal := spiceVariables[rvNum].Value; // Store the nominal value
             end;
           end;
@@ -300,9 +316,12 @@ procedure ReadSweepFromControl(rsText : string);
 var
   rsFoundSweep : Boolean;
   rsStart, rsInc, rsStop : double;
-  rsVariable : Str40;
+  rsVariable : string;
 
 begin
+  rsStop := 0;
+  rsStart := 0;
+  rsInc := 0;
   rsFoundSweep := True;
   if Length(ReadStrFromMany(2,rsText,' ')) < 41 then
     rsVariable := ReadStrFromMany(2,rsText,' ')
@@ -347,7 +366,7 @@ begin
     SetLength(sweeps,Length(sweeps)+1);
     with sweeps[High(sweeps)] do
     begin
-      SweepVar := rsVariable;
+      SweepVar := ANSIString(rsVariable);
       Start := rsStart;
       Inc := rsInc;
       Stop := rsStop;
@@ -359,7 +378,6 @@ end; // ReadSweepFromControl
 procedure ReadDefFile;
 
 var
-  d1 : Integer;
   dText, dPar, dParBlock : String;
   dReadBlock : Boolean;
   defFile : TextFile;
@@ -374,10 +392,10 @@ begin
     if dText <> '' then
       if copy(dText,1,1) <> '$' then
       begin
-        if dText[1] in ['l','b'] then
+        if ANSIChar(dText[1]) in ['l','b'] then
           dText := StringReplace(dText,'_','u',[rfReplaceAll]);
         SetLength(rsDeckLines, Length(rsDeckLines)+1);
-        rsDeckLines[High(rsDeckLines)] := dText;
+        rsDeckLines[High(rsDeckLines)] := ANSIString(dText);
       end;
   until StripSpaces(LowerCase(dText)) = '$end';
   ReadVariablesFromSpiceDeck(rsDeckLines);
@@ -484,11 +502,11 @@ begin
     ReadLn(rsFile, rsTextLine);
     rsTextLine := StringReplace(rsTextLine,#9,' ',[rfReplaceAll]); // Replace TAB characters with spaces
     if length(rsTextLine) > 1 then
-      if rsTextLine[1] in ['l','L','b','B'] then
+      if ANSIChar(rsTextLine[1]) in ['l','L','b','B'] then
         // Replace underscore characters in L/B element names with 'u' - otherwise the print command fails for subcircuit elements
         rsTextLine := StringReplace(rsTextLine,'_','u',[rfReplaceAll]);
      SetLength(rsMemLines, Length(rsMemLines)+1);       // Increase length of dynamic array.
-    rsMemLines[High(rsMemLines)] := rsTextLine;         // Write rsTextLine to memory.
+    rsMemLines[High(rsMemLines)] := ANSIString(rsTextLine);         // Write rsTextLine to memory.
   end;
   ReadVariablesFromSpiceDeck(rsMemLines);
   EchoLn(rsMessage);
@@ -504,21 +522,26 @@ var
   fDone : Boolean;
   fSlidingWindow : array of Double;
   fFile : TextFile;
+  fSeparator : String;
 
 begin
+  fTimeInFile := 0;
+  fSeparator := ',';
+  if useJSIM then
+    fSeparator := ' ';
   AssignFile(fFile,fFileName);
   {$I-}
   Reset(fFile);
   {$I+}
   if IOResult <> 0 then        // problem with .dat file
     ExitWithHaltCode('Error while trying to open JSIM output file "'+fFileName+'". Abort.', 102);
-  ReadLn(fFile,fText);  // First line of .dat file contains variable identifiers.
+  ReadLn(fFile,fText);  // First line of .csv or .dat file contains variable identifiers.
   fTimeStep := -1; // Startup
   fTimePrev := -1;
   repeat
     ReadLn(fFile,fText);
-    if CheckIfReal(ReadStrFromMany(1,fText,' ')) then
-      fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,' '));
+    if CheckIfReal(ReadStrFromMany(1,fText,fSeparator)) then
+      fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,fSeparator));
     if (fTimeInFile > 1e-20) and (fTimeStep < 0) then
       if fTimePrev < 0 then
       begin
@@ -533,7 +556,6 @@ begin
     FindFirstPulseTime := 0;
     Exit;
   end;
-  fAcc := 0;
   fDone := False;
   fThresholdTime := -1;
   SetLength(fSlidingWindow,round(slidingIntegratorLength/fTimeStep));
@@ -544,15 +566,14 @@ begin
     ReadLn(fFile,fText);
     if eof(fFile) then
     begin
-      fDone := True;
       CloseFile(fFile);
       FindFirstPulseTime := 0;
       Exit;
     end;
     for f1 := 0 to (High(fSlidingWindow)-1) do  // Slide back
       fSlidingWindow[f1] := fSlidingWindow[f1+1];
-    fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,' '));
-    fSlidingWindow[High(fSlidingWindow)] := StrToFloat(ReadStrFromMany(fIndex,fText,' '));
+    fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,fSeparator));
+    fSlidingWindow[High(fSlidingWindow)] := StrToFloat(ReadStrFromMany(fIndex,fText,fSeparator));
     fAcc := 0;
     for f1 := 1 to High(fSlidingWindow) do // Integrate
       fAcc := fAcc + (fSlidingWindow[f1]+fSLidingWindow[f1-1])/2*fTimeStep;
@@ -575,8 +596,13 @@ var
   fDone : Boolean;
   fSlidingWindow : array of Double;
   fFile : TextFile;
+  fSeparator : String;
 
 begin
+  fTimeInFile := 0;
+  fSeparator := ',';
+  if useJSIM then
+    fSeparator := ' ';
   AssignFile(fFile,fFileName);
   {$I-}
   Reset(fFile);
@@ -588,8 +614,8 @@ begin
   fTimePrev := -1;
   repeat
     ReadLn(fFile,fText);
-    if CheckIfReal(ReadStrFromMany(1,fText,' ')) then
-      fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,' '));
+    if CheckIfReal(ReadStrFromMany(1,fText,fSeparator)) then
+      fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,fSeparator));
     if (fTimeInFile > 1e-20) and (fTimeStep < 0) then
       if fTimePrev < 0 then
       begin
@@ -604,7 +630,6 @@ begin
     FindSecondPulseTime := 0;
     Exit;
   end;
-  fAcc := 0;
   fDone := False;
   fThresholdTime := -1;
   SetLength(fSlidingWindow,round((fStopTime-fStartTime)/fTimeStep));
@@ -615,15 +640,14 @@ begin
     ReadLn(fFile,fText);
     if eof(fFile) then
     begin
-      fDone := True;
       CloseFile(fFile);
       FindSecondPulseTime := 0;
       Exit;
     end;
     for f1 := 0 to (High(fSlidingWindow)-1) do  // Slide back
       fSlidingWindow[f1] := fSlidingWindow[f1+1];
-    fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,' '));
-    fSlidingWindow[High(fSlidingWindow)] := StrToFloat(ReadStrFromMany(fIndex,fText,' '));
+    fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,fSeparator));
+    fSlidingWindow[High(fSlidingWindow)] := StrToFloat(ReadStrFromMany(fIndex,fText,fSeparator));
     fAcc := 0;
     for f1 := 1 to High(fSlidingWindow) do // Integrate
       fAcc := fAcc + (fSlidingWindow[f1]+fSLidingWindow[f1-1])/2*fTimeStep;
@@ -647,8 +671,13 @@ var
   fDone : Boolean;
   fSlidingWindow : array of Double;
   fFile : TextFile;
+  fSeparator : String;
 
 begin
+  fTimeInFile := 0;
+  fSeparator := ',';
+  if useJSIM then
+    fSeparator := ' ';
   AssignFile(fFile,fFileName);
   {$I-}
   Reset(fFile);
@@ -660,8 +689,8 @@ begin
   fTimePrev := -1;
   repeat
     ReadLn(fFile,fText);
-    if CheckIfReal(ReadStrFromMany(1,fText,' ')) then
-      fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,' '));
+    if CheckIfReal(ReadStrFromMany(1,fText,fSeparator)) then
+      fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,fSeparator));
     if (fTimeInFile > 1e-20) and (fTimeStep < 0) then
       if fTimePrev < 0 then
       begin
@@ -676,7 +705,6 @@ begin
     FindNthPulseTime := 0;
     Exit;
   end;
-  fAcc := 0;
   fDone := False;
   fThresholdTime := -1;
   SetLength(fSlidingWindow,round((fStopTime-fStartTime)/fTimeStep));
@@ -687,15 +715,14 @@ begin
     ReadLn(fFile,fText);
     if eof(fFile) then
     begin
-      fDone := True;
       CloseFile(fFile);
       FindNthPulseTime := 0;
       Exit;
     end;
     for f1 := 0 to (High(fSlidingWindow)-1) do  // Slide back
       fSlidingWindow[f1] := fSlidingWindow[f1+1];
-    fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,' '));
-    fSlidingWindow[High(fSlidingWindow)] := StrToFloat(ReadStrFromMany(fIndex,fText,' '));
+    fTimeInFile := StrToFloat(ReadStrFromMany(1,fText,fSeparator));
+    fSlidingWindow[High(fSlidingWindow)] := StrToFloat(ReadStrFromMany(fIndex,fText,fSeparator));
     fAcc := 0;
     for f1 := 1 to High(fSlidingWindow) do // Integrate
       fAcc := fAcc + (fSlidingWindow[f1]+fSLidingWindow[f1-1])/2*fTimeStep;

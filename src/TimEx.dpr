@@ -93,7 +93,7 @@ procedure Initiate;
 // Set variables at startup
 var
   i1 : Integer;
-  textLine : String;
+
 begin
   StartTime := CurrentTime;                // "Time" function is not Linux-friendly
   StartDate := Date;
@@ -129,12 +129,14 @@ begin
   minSameInputSeparation := 5E-12;   // Default minimum time between test bench application of pulses to the same input if ioFullFluxon = false.
   verilogStableTime := 10E-12;       // Default verilog testbench simulation model time to first input in startup state.
   verilogWaitTime := 10E-12;         // Default verilog testbench simulation model time between inputs.
-  inputChainDelay := 7E-12;          // Default delay of input chain (from JSIM source input through load cell to DUT input) - used to match JSIM testbench to Verilog testbench
+  inputChainDelay := 7E-12;          // Default delay of input chain (from JoSIM source input through load cell to DUT input) - used to match JSIM testbench to Verilog testbench
   ioFullFluxon := true;              // Default handles all input/output pulses as full fluxons. Set false for PTL-based I/O.
   applyRandom := false;              // Startup simulations - do not apply random variations.
   numSimsTol := 0;                   // Default is no tolerance simulations
   noiseTemp := -1;                   // Default is no noise simulations
-  simTimeStep := 0.25E-12;           // Default JSIM simulation time step
+  simTimeStep := 0.25E-12;           // Default JoSIM simulation time step
+  useJSIM := false;                  // By default, JoSIM used. useJSIM overrides that.
+  containedVerilog := false;         // By default, output will be to the format required by vcd_assert.
   runTB := False;
   verboseMode := false;
   AssignFile(OutFile,'out.txt');
@@ -165,6 +167,8 @@ begin
     end;
   for i1 := 1 to ParamCount do
   begin
+    if ParamStr(i1) = '-a' then useJSIM := True;
+    if ParamStr(i1) = '-c' then containedVerilog := True;   
     if ParamStr(i1) = '-d' then defFileParam := i1+1;
     if ParamStr(i1) = '-e' then sourceFileParam := i1+1;
     if ParamStr(i1) = '-L' then loadInFileParam := i1+1;
@@ -194,8 +198,17 @@ begin
     Delete(cellNameStr,1,pos('/',cellNameStr));
   cellNameStr := copy(cellNameStr,1,pos('.',cellNameStr)-1);
 {$ENDIF}
+  engineName := 'josim';
+  simResultFilename := '-o simout.csv';
+  simResultFileSuffix := 'csv';
+  if useJSIM then
+  begin
+    engineName := 'jsim_n';
+    simResultFilename := '-m simout.dat';
+    simResultFileSuffix := 'dat';
+  end;
   ReadDefFile;
-  // We require the first parameter to be the DUT spice/jsim file, unless a call to HELP was fielded.
+  // We require the first parameter to be the DUT spice/josim file, unless a call to HELP was fielded.
   ReadSpiceFileToMem(ParamStr(1),spiceDUTLines,'Deck for Device-Under-Test read.');
   if loadInFileParam > 0 then  // Override any default loaded from definition file, and read the input load directly from netlist
     ReadSpiceFileToMem(ParamStr(loadInFileParam),spiceLoadInLines,'Deck for Input Load read.');
@@ -225,95 +238,99 @@ begin
   fSubDetected := False;
   for f1 := 0 to High(spiceLoadInLines) do
   begin
-    if LowerCase(Copy(spiceLoadInLines[f1],1,8)) = '.subckt ' then
+    if LowerCase(String(Copy(spiceLoadInLines[f1],1,8))) = '.subckt ' then
     begin
       if fSubDetected then
         ExitWithHaltCode('Multiple subcircuit definitions detected in input load netlist. This is not allowed.',30)
       else
         fSubDetected := True;
-      fStr := ReadStrFromMany(2,spiceLoadInLines[f1],' ');
-      spiceLoadInLines[f1] := '.SUBCKT LOADINCELL '+copy(spiceLoadInLines[f1],pos(fStr,spiceLoadInLines[f1])+Length(fStr),Length(spiceLoadInLines[f1])-(pos(fStr,spiceLoadInLines[f1])+Length(fStr))+1);
+      fStr := ReadStrFromMany(2,String(spiceLoadInLines[f1]),' ');
+      spiceLoadInLines[f1] := '.SUBCKT LOADINCELL '+copy(spiceLoadInLines[f1],pos(fStr,String(spiceLoadInLines[f1]))
+                              +Length(fStr),Length(spiceLoadInLines[f1])-(pos(fStr,String(spiceLoadInLines[f1]))+Length(fStr))+1);
     end;
-    if LowerCase(Copy(spiceLoadInLines[f1],1,6)) = '.ends ' then
+    if LowerCase(String(Copy(spiceLoadInLines[f1],1,6))) = '.ends ' then
       spiceLoadInLines[f1] := '.ENDS LOADINCELL';
   end;
   fSubDetected := False;
   for f1 := 0 to High(spiceLoadOutLines) do
   begin
-    if LowerCase(Copy(spiceLoadOutLines[f1],1,8)) = '.subckt ' then
+    if LowerCase(String(Copy(spiceLoadOutLines[f1],1,8))) = '.subckt ' then
     begin
       if fSubDetected then
         ExitWithHaltCode('Multiple subcircuit definitions detected in output load netlist. This is not allowed.',30)
       else
         fSubDetected := True;
-      fStr := ReadStrFromMany(2,spiceLoadOutLines[f1],' ');
-      spiceLoadOutLines[f1] := '.SUBCKT LOADOUTCELL '+copy(spiceLoadOutLines[f1],pos(fStr,spiceLoadOutLines[f1])+Length(fStr),Length(spiceLoadOutLines[f1])-(pos(fStr,spiceLoadOutLines[f1])+Length(fStr))+1);
+      fStr := ReadStrFromMany(2,String(spiceLoadOutLines[f1]),' ');
+      spiceLoadOutLines[f1] := '.SUBCKT LOADOUTCELL '+copy(spiceLoadOutLines[f1],pos(fStr,String(spiceLoadOutLines[f1]))
+                               +Length(fStr),Length(spiceLoadOutLines[f1])-(pos(fStr,String(spiceLoadOutLines[f1]))+Length(fStr))+1);
     end;
-    if LowerCase(Copy(spiceLoadOutLines[f1],1,6)) = '.ends ' then
+    if LowerCase(String(Copy(spiceLoadOutLines[f1],1,6))) = '.ends ' then
       spiceLoadOutLines[f1] := '.ENDS LOADOUTCELL';
   end;
   fSubDetected := False;
   for f1 := 0 to High(spiceSinkLines) do
   begin
-    if LowerCase(Copy(spiceSinkLines[f1],1,8)) = '.subckt ' then
+    if LowerCase(String(Copy(spiceSinkLines[f1],1,8))) = '.subckt ' then
     begin
       if fSubDetected then
         ExitWithHaltCode('Multiple subcircuit definitions detected in sink netlist. This is not allowed.',31)
       else
         fSubDetected := True;
-      fStr := ReadStrFromMany(2,spiceSinkLines[f1],' ');
-      spiceSinkLines[f1] := '.SUBCKT SINKCELL '+copy(spiceSinkLines[f1],pos(fStr,spiceSinkLines[f1])+Length(fStr),Length(spiceSinkLines[f1])-(pos(fStr,spiceSinkLines[f1])+Length(fStr))+1);
+      fStr := ReadStrFromMany(2,String(spiceSinkLines[f1]),' ');
+      spiceSinkLines[f1] := '.SUBCKT SINKCELL '+copy(spiceSinkLines[f1],pos(fStr,String(spiceSinkLines[f1]))
+                            +Length(fStr),Length(spiceSinkLines[f1])-(pos(fStr,String(spiceSinkLines[f1]))+Length(fStr))+1);
     end;
-    if LowerCase(Copy(spiceSinkLines[f1],1,6)) = '.ends ' then
+    if LowerCase(String(Copy(spiceSinkLines[f1],1,6))) = '.ends ' then
       spiceSinkLines[f1] := '.ENDS SINKCELL';
   end;
   fSubDetected := False;
   for f1 := 0 to High(spiceSourceLines) do
     begin
-      if LowerCase(Copy(spiceSourceLines[f1],1,8)) = '.subckt ' then
+      if LowerCase(String(Copy(spiceSourceLines[f1],1,8))) = '.subckt ' then
         begin
           if fSubDetected then
             ExitWithHaltCode('Multiple subcircuit definitions detected in source netlist. This is not allowed.',32)
             else fSubDetected := True;
-          fStr := ReadStrFromMany(2,spiceSourceLines[f1],' ');
-          spiceSourceLines[f1] := '.SUBCKT SOURCECELL '+copy(spiceSourceLines[f1],pos(fStr,spiceSourceLines[f1])+Length(fStr),Length(spiceSourceLines[f1])-(pos(fStr,spiceSourceLines[f1])+Length(fStr))+1);
+          fStr := ReadStrFromMany(2,String(spiceSourceLines[f1]),' ');
+          spiceSourceLines[f1] := '.SUBCKT SOURCECELL '+copy(spiceSourceLines[f1],pos(fStr,String(spiceSourceLines[f1]))
+                                  +Length(fStr),Length(spiceSourceLines[f1])-(pos(fStr,String(spiceSourceLines[f1]))+Length(fStr))+1);
         end;
-      if LowerCase(Copy(spiceSourceLines[f1],1,6)) = '.ends ' then
+      if LowerCase(Copy(String(spiceSourceLines[f1]),1,6)) = '.ends ' then
         spiceSourceLines[f1] := '.ENDS SOURCECELL';
     end;
   fSubDetected := False;
   for f1 := 0 to High(spiceDUTLines) do
   begin
-    if LowerCase(Copy(spiceDUTLines[f1],1,8)) = '.subckt ' then
+    if LowerCase(Copy(String(spiceDUTLines[f1]),1,8)) = '.subckt ' then
     begin
       if fSubDetected then
         ExitWithHaltCode('Multiple subcircuit definitions detected in DUT netlist. This is not allowed.',33)
       else
         fSubDetected := True;
-      dutCellName := ReadStrFromMany(2,spiceDUTLines[f1],' ');    // We need the DUT subcircuit name for later
-      fStr := LowerCase(spiceDUTLines[f1]); // Keep a copy of this line
+      dutCellName := ReadStrFromMany(2,String(spiceDUTLines[f1]),' ');    // We need the DUT subcircuit name for later
+      fStr := LowerCase(String(spiceDUTLines[f1])); // Keep a copy of this line
     end;
   end;
   for f1 := 0 to High(spiceDUTLines) do                              // get the names and node identifiers (number/string) of all inputs and outputs to DUT
   begin
-    if LowerCase(Copy(spiceDUTLines[f1],1,7)) = '*$ports' then
+    if LowerCase(Copy(String(spiceDUTLines[f1]),1,7)) = '*$ports' then
     begin
       f2 := 2;
       repeat
-        fPortNameStr := LowerCase(ReadStrFromMany(f2,spiceDUTLines[f1],' '));
+        fPortNameStr := LowerCase(ReadStrFromMany(f2,String(spiceDUTLines[f1]),' '));
         fPortNodeStr := ReadStrFromMany(f2+1,fStr,' '); // The .SUBCKT line has two terms before the nodes start
         Inc(f2);
         if copy(fPortNameStr,1,3) = 'in_' then
         begin
           SetLength(dutInput,Length(dutInput)+1);
-          dutInput[High(dutInput)].Name := copy(fPortNameStr,4,Length(fPortNameStr)-3);
-          dutInput[High(dutInput)].Node := fPortNodeStr;
+          dutInput[High(dutInput)].Name := ANSIString(copy(fPortNameStr,4,Length(fPortNameStr)-3));
+          dutInput[High(dutInput)].Node := ANSIString(fPortNodeStr);
         end;
         if copy(fPortNameStr,1,4) = 'out_' then
         begin
           SetLength(dutOutput,Length(dutOutput)+1);
-          dutOutput[High(dutOutput)].Name := copy(fPortNameStr,5,Length(fPortNameStr)-4);
-          dutOutput[High(dutOutput)].Node := fPortNodeStr;
+          dutOutput[High(dutOutput)].Name := ANSIString(copy(fPortNameStr,5,Length(fPortNameStr)-4));
+          dutOutput[High(dutOutput)].Node := ANSIString(fPortNodeStr);
         end;
       until (fPortNameStr = ' ') or (f2 > 255);
       if f2 > 255 then
@@ -341,7 +358,7 @@ begin
     for cEl := 0 to High(cycleList[cLoop]) do
     begin
       cMult := 1;
-      cStr := cycleList[cLoop,cEl];
+      cStr := String(cycleList[cLoop,cEl]);
       if cStr[1] = '-' then
       begin
         cMult := -1;
@@ -349,7 +366,7 @@ begin
       end;
       for cRef := 0 to High(elements) do
       begin
-        if elements[cRef].Name = cStr then // Aah, this is the element
+        if String(elements[cRef].Name) = cStr then // Aah, this is the element
         begin
           if elements[cRef].Name[1] = 'l' then // It is an inductor: multiply current with inductance.
             cAcc := cAcc + elements[cRef].Current*elements[cRef].Value*cMult;  // Add the flux contribution (signed) to the accumulated cycle total
@@ -416,8 +433,8 @@ begin
   EchoLn(ParamStr(1)+': Finding all states.');
   SetLength(inputTimes,Length(dutInput)); // array of zero length for each input.
   WriteSimDeck('simdeck.js', 2*timeFirstStable);
-  ExecuteShellApp('jsim_n', '-m simout.dat simdeck.js');  // Run JSIM_n on nominal circuit with no inputs
-  ReadCurrentValues('simout.dat',TimeFirstStable);
+  ExecuteShellApp(engineName, simResultFilename+' simdeck.js');  // Run JoSIM/JSIM_n on nominal circuit with no inputs
+  ReadCurrentValues('simout.'+simResultFileSuffix,TimeFirstStable);
   CalculateCycleFlux;
   SetLength(states,1); // Startup state
   states[0].time := TimeFirstStable;  // Time at which inputs to 0'th state
@@ -445,7 +462,6 @@ begin
   fTimeTotal := timeFirstStable+2*waitForStateChange;    // Set total simulation time default (as backup)
   while foundNewState do
   begin
-    foundNewState := False; // We've found one; need a new one to continue
     for fIn := 0 to High(dutInput) do
     begin
       for f1 := 0 to High(dutInput) do
@@ -463,34 +479,32 @@ begin
         if (inputTimes[f1,High(inputTimes[f1])] + 2*waitForStateChange) > fTimeTotal then  // largest time value at end of each inputTimes[input] array; sim time total should exceed by 2*waitForStateChange
           fTimeTotal := inputTimes[f1,High(inputTimes[f1])] + 2*waitForStateChange;
       WriteSimDeck('simdeck.js', fTimeTotal);
-      ExecuteShellApp('jsim_n', '-m simout.dat simdeck.js');  // Run JSIM_n
-      fTimeIn := FindFirstPulseTime('simout.dat',states[fState].time,2+fIn);  // Index is 1+1+fIn (array_offset(0->1)+ time + fIn'th input)
+      ExecuteShellApp(engineName, simResultFilename+' simdeck.js');  // Run JoSIM/JSIM_n
+      fTimeIn := FindFirstPulseTime('simout.'+simResultFileSuffix,states[fState].time,2+fIn);  // Index is 1+1+fIn (array_offset(0->1)+ time + fIn'th input)
       // Check for cells with no DMP (buffer junction) protection on inputs leading to storage loops. One clear alarm is a pulse appearing at another input
       for f1 := 0 to High(dutInput) do    // See if any outputs appear
         if f1 <> fIn then // Obviously there is a pulse at fIn...
         begin
-          fTimeInFalse := -1;
-          fTimeInFalse := FindFirstPulseTime('simout.dat',states[fState].time,2+f1);  // Index is 1+1+f1 (array_offset(0->1)+ time + f1'th input)
+          fTimeInFalse := FindFirstPulseTime('simout.'+simResultFileSuffix,states[fState].time,2+f1);  // Index is 1+1+f1 (array_offset(0->1)+ time + f1'th input)
           if (fTimeInFalse - fTimeIn) > 1e-20 then // Clearly, an output pulse at the f1'th input caused by the input at fIn. Not good.
           begin
             states[fState].inputResponse[fIn].isValid := False; // Shouldn't ever fire this input while in this state...
-            EchoLn('State '+IntToStr(fState)+': Input "'+dutInput[fIn].Name+'" disallowed; results in pulse at in "'+dutInput[f1].Name+'".');
+            EchoLn('State '+IntToStr(fState)+': Input "'+String(dutInput[fIn].Name)+'" disallowed; results in pulse at in "'+String(dutInput[f1].Name)+'".');
           end;
         end;
       if states[fState].inputResponse[fIn].isValid then
       for f1 := 0 to High(dutOutput) do    // See if any outputs appear
       begin
-        WriteIntegrationTrace('simout.dat','trace_s'+IntToStr(fState)+'_i'+IntToStr(fIn)+'.txt',2+Length(dutInput)+f1);  // Index is 1+1+#inputs+f1 (array_offset(0->1)+time +#inputs + f1'th output)
-        fTimeOut := -1;
-        fTimeOut := FindFirstPulseTime('simout.dat',states[fState].time,2+Length(dutInput)+f1);  // Index is 1+1+#inputs+f1 (array_offset(0->1)+time +#inputs + f1'th output)
+        WriteIntegrationTrace('simout.'+simResultFileSuffix,'trace_s'+IntToStr(fState)+'_i'+IntToStr(fIn)+'.txt',2+Length(dutInput)+f1);  // Index is 1+1+#inputs+f1 (array_offset(0->1)+time +#inputs + f1'th output)
+        fTimeOut := FindFirstPulseTime('simout.'+simResultFileSuffix,states[fState].time,2+Length(dutInput)+f1);  // Index is 1+1+#inputs+f1 (array_offset(0->1)+time +#inputs + f1'th output)
         if (fTimeOut - fTimeIn) > 1e-20 then // Clearly, an output pulse caused by this input.
         begin
           states[fState].inputResponse[fIn].outTimes[f1,0] := (fTimeOut - fTimeIn);
-          EchoLn('State '+IntToStr(fState)+': Input "'+dutInput[fIn].Name+'" -> Output "'+dutOutput[f1].Name+'" after '
+          EchoLn('State '+IntToStr(fState)+': Input "'+String(dutInput[fIn].Name)+'" -> Output "'+String(dutOutput[f1].Name)+'" after '
                     +FloatToStrF(states[fState].inputResponse[fIn].outTimes[f1,0],ffGeneral,4,2)+' s.');
         end;
       end;
-      ReadCurrentValues('simout.dat',states[fState].time+WaitForStateChange);
+      ReadCurrentValues('simout.'+simResultFileSuffix,states[fState].time+WaitForStateChange);
       CalculateCycleFlux;
       if CompareCycleFlux(cycleFlux, states[fState].cycleFlux) then
       begin
@@ -569,6 +583,7 @@ var
   cPulseRepulsionStr, cLastDot : string;
 
 begin
+  cTimeIn2 := 0;
 //  for cSweep := 0 to High(sweeps) do
   SetLength(sweepNominal,1);
   sweepNominal[0] := 1;
@@ -581,7 +596,7 @@ begin
       sweepNominal[cSweep] := 1; // Assume at the start that the first step is the nominal value. We'll find the closest step later.
       SetLength(sweeps[cSweep].FunctionalAtStep,cNumSweepSteps+1); // For direct addressing, ignore the 0th element and set array one longer than number of sweep steps
       cSweepStepValClosestToNom := 1/EPSILON; // Start off big.
-      cSweepNomVal := ReadSpiceVariableValue(sweeps[cSweep].SweepVar);
+      cSweepNomVal := ReadSpiceVariableValue(String(sweeps[cSweep].SweepVar));
     end
     else
       cNumSweepSteps := 1; // No sweeps; only one step (nominal value)
@@ -617,9 +632,9 @@ begin
           cSweepStepValClosestToNom := abs(cSweepValue-cSweepNomVal);
           sweepNominal[cSweep] := cSweepStep;
         end;
-        SetSpiceVariableValue(sweeps[cSweep].SweepVar,cSweepValue);
+        SetSpiceVariableValue(String(sweeps[cSweep].SweepVar),cSweepValue);
         EchoLn('');
-        EchoLn(ParamStr(1)+': Sweep '+sweeps[cSweep].SweepVar+' step '+IntToStr(cSweepStep)+'. Value = '+FloatToStrF(cSweepValue,ffGeneral,2,2));
+        EchoLn(ParamStr(1)+': Sweep '+String(sweeps[cSweep].SweepVar)+' step '+IntToStr(cSweepStep)+'. Value = '+FloatToStrF(cSweepValue,ffGeneral,2,2));
         sweeps[cSweep].FunctionalAtStep[cSweepStep] := true; // Assume the circuit works at this step
       end;
       for cState := 0 to High(states) do     // for every state.
@@ -657,20 +672,20 @@ begin
                   inc(cCountIterations);
                   inputTimes[cIn2,High(inputTimes[cIn2])] := states[cState].time + cTimeToIn2; // Fire a pulse into input cIn2 at a variable time.
                   WriteSimDeck('simdeck.js', states[cState].time+2*waitForStateChange+cTimeToIn2);
-                  ExecuteShellApp('jsim_n', '-m simout.dat simdeck.js');  // Run JSIM_n
-                  ReadCurrentValues('simout.dat',states[cState].time+cTimeToIn2+WaitForStateChange);
+                  ExecuteShellApp(engineName, simResultFilename+' simdeck.js');  // Run JSIM_n
+                  ReadCurrentValues('simout.'+simResultFileSuffix,states[cState].time+cTimeToIn2+WaitForStateChange);
                   CalculateCycleFlux;
                   // NOTE: More than just checking the state - check output pulses (absent or shifted more than predefined percentage/time from nominal)
-                  cTimeIn := FindFirstPulseTime('simout.dat',states[cState].time,2+cIn);  // Index is 1+1+cIn (array_offset(0->1)+ time + cIn'th input)
+                  cTimeIn := FindFirstPulseTime('simout.'+simResultFileSuffix,states[cState].time,2+cIn);  // Index is 1+1+cIn (array_offset(0->1)+ time + cIn'th input)
                   if cTimeIn < EPSILON then
                   begin
                     if cIn <> cIn2 then
                     begin
-                      EchoLn('Cannot find first input pulse on "'+UpperCase(dutInput[cIn].Name)+'". Could be: (a) Testbench failure, (b) too narrow a sliding integrator window,'
+                      EchoLn('Cannot find first input pulse on "'+UpperCase(String(dutInput[cIn].Name))+'". Could be: (a) Testbench failure, (b) too narrow a sliding integrator window,'
                             +' or a pulse on a PTL that is smaller than "PulseFluxonFraction".');
                       if (cState = states[cState].inputResponse[cIn].toState) and NoOutputs(cState,cIn,cSweepStep) then
                       begin
-                        EchoLn('"'+UpperCase(dutInput[cIn].Name)+'" in state '+IntToStr(cState)+' does not alter state or cause outputs. Safely ignored.');
+                        EchoLn('"'+UpperCase(String(dutInput[cIn].Name))+'" in state '+IntToStr(cState)+' does not alter state or cause outputs. Safely ignored.');
                         ignorePulse := true;
                       end
                       else
@@ -678,23 +693,23 @@ begin
                     end
                     else
                     begin
-                      EchoLn('Cannot find second input pulse on "'+UpperCase(dutInput[cIn].Name)+'". Could be: (a) Testbench failure, (b) too narrow a sliding integrator window,'
+                      EchoLn('Cannot find second input pulse on "'+UpperCase(String(dutInput[cIn].Name))+'". Could be: (a) Testbench failure, (b) too narrow a sliding integrator window,'
                             +' or a pulse on a PTL that is smaller than "PulseFluxonFraction". Ignoring pulse repulsion analysis.')  ;
                       ignorePulse := true;
                     end;
                   end;
                   if cIn2 <> cIn then
-                    cTimeIn2 := FindFirstPulseTime('simout.dat',states[cState].time,2+cIn2)  // Index is 1+1+cIn2 (array_offset(0->1)+ time + cIn2'th input)
+                    cTimeIn2 := FindFirstPulseTime('simout.'+simResultFileSuffix,states[cState].time,2+cIn2)  // Index is 1+1+cIn2 (array_offset(0->1)+ time + cIn2'th input)
                   else if not ignorePulse then
                   begin
                     if ioFullFluxon then
-                      cTimeIn2 := FindSecondPulseTime('simout.dat',states[cState].time,states[cState].time+1.8*waitForStateChange,2+cIn2)  // Index is 1+1+cIn2 (array_offset(0->1)+ time + cIn2'th input)
+                      cTimeIn2 := FindSecondPulseTime('simout.'+simResultFileSuffix,states[cState].time,states[cState].time+1.8*waitForStateChange,2+cIn2)  // Index is 1+1+cIn2 (array_offset(0->1)+ time + cIn2'th input)
                     else
-                      cTimeIn2 := FindFirstPulseTime('simout.dat',states[cState].time{->}+minSameInputSeparation+(cTimeIn-states[cState].time){<-},2+cIn2);  // Index is 1+1+cIn2 (array_offset(0->1)+ time + cIn2'th input)
+                      cTimeIn2 := FindFirstPulseTime('simout.'+simResultFileSuffix,states[cState].time{->}+minSameInputSeparation+(cTimeIn-states[cState].time){<-},2+cIn2);  // Index is 1+1+cIn2 (array_offset(0->1)+ time + cIn2'th input)
                     if (cTimeIn2 > EPSILON) and ((cTimeIn2 - cTimeIn) < (cTimeToIn2*0.75)) then
                     begin                  // There is a second input pulse - testbench works
-                      EchoLn('WARNING: Input on '+UpperCase(dutInput[cIn].Name)+' where it was not fired: state '+IntToStr(cState)+' -> '+UpperCase(dutInput[cIn].Name)
-                                                 +' -> state '+IntToStr(cExpectedState)+' -> '+UpperCase(dutInput[cIn2].Name)+', which indicates non-functional circuit.');
+                      EchoLn('WARNING: Input on '+UpperCase(String(dutInput[cIn].Name))+' where it was not fired: state '+IntToStr(cState)+' -> '+UpperCase(String(dutInput[cIn].Name))
+                                                 +' -> state '+IntToStr(cExpectedState)+' -> '+UpperCase(String(dutInput[cIn2].Name))+', which indicates non-functional circuit.');
                       EchoLn('In1 at '+FloatToStrF(cTimeIn,ffGeneral,3,1)+', In2 at '+FloatToStrF(cTimeIn2,ffGeneral,3,1)+'.');
                       foundCircuitFail := True;
                     end;
@@ -704,18 +719,18 @@ begin
                     cUnaccountedOut := False; // Assume that no output pulses appeared that were unaccounted for...
                     for c1 := 0 to High(dutOutput) do    // ...but now we must make sure: see if any outputs appear
                     begin
-                      cTimeOutFromIn := FindFirstPulseTime('simout.dat',states[cState].time,2+Length(dutInput)+c1);  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
+                      cTimeOutFromIn := FindFirstPulseTime('simout.'+simResultFileSuffix,states[cState].time,2+Length(dutInput)+c1);  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
                       if cIn2 <> CIn then
-                        cTimeOutFromIn2 := FindFirstPulseTime('simout.dat',states[cState].time,2+Length(dutInput)+c1)  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
+                        cTimeOutFromIn2 := FindFirstPulseTime('simout.'+simResultFileSuffix,states[cState].time,2+Length(dutInput)+c1)  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
                       else
                       begin
                         if ioFullFluxon then
-                          cTimeOutFromIn2 := FindSecondPulseTime('simout.dat',states[cState].time,states[cState].time+1.8*WaitForStateChange,2+Length(dutInput)+c1)  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
+                          cTimeOutFromIn2 := FindSecondPulseTime('simout.'+simResultFileSuffix,states[cState].time,states[cState].time+1.8*WaitForStateChange,2+Length(dutInput)+c1)  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
                         else
-                          cTimeOutFromIn2 := FindFirstPulseTime('simout.dat',states[cState].time{->}+minSameInputSeparation+(cTimeOutFromIn-states[cState].time){<-},2+Length(dutInput)+c1);  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
-                        if FindNthPulseTime('simout.dat',3,states[cState].time,states[cState].time+1.8*WaitForStateChange,2+Length(dutInput)+c1) > 0 then
+                          cTimeOutFromIn2 := FindFirstPulseTime('simout.'+simResultFileSuffix,states[cState].time{->}+minSameInputSeparation+(cTimeOutFromIn-states[cState].time){<-},2+Length(dutInput)+c1);  // Index is 1+1+#inputs+c1 (array_offset(0->1)+time +#inputs + c1'th output)
+                        if FindNthPulseTime('simout.'+simResultFileSuffix,3,states[cState].time,states[cState].time+1.8*WaitForStateChange,2+Length(dutInput)+c1) > 0 then
                         begin
-                          EchoLn('WARNING: Too many output pulses: '+UpperCase(dutInput[cIn].Name)+' -> state '+IntToStr(cState)+' -> '+UpperCase(dutInput[cIn2].Name)
+                          EchoLn('WARNING: Too many output pulses: '+UpperCase(String(dutInput[cIn].Name))+' -> state '+IntToStr(cState)+' -> '+UpperCase(String(dutInput[cIn2].Name))
                                    +', which indicates non-functional circuit.');
                           foundCircuitFail := True;
                         end;
@@ -771,8 +786,8 @@ begin
                       if cTimeToIn2 > 0.99*waitForStateChange then   // Sanity check. If it does not work at waitForStateChange, then the state extraction part failed. Report!
                       begin
                         EchoLn('WARNING: Incorrect state or output at WaitForStateChange, which indicates non-functional circuit, or circuit that exceeds MaxSelfDelayChange.');
-                        EchoLn('  Expected: State '+IntToStr(cState)+' -> '+UpperCase(dutInput[cIn].Name)+' -> '+ IntToStr(states[cState].inputResponse[cIn].toState)
-                                 +' -> '+UpperCase(dutInput[cIn2].Name)+' -> '+IntToStr(cExpectedState)+'.');
+                        EchoLn('  Expected: State '+IntToStr(cState)+' -> '+UpperCase(String(dutInput[cIn].Name))+' -> '+ IntToStr(states[cState].inputResponse[cIn].toState)
+                                 +' -> '+UpperCase(String(dutInput[cIn2].Name))+' -> '+IntToStr(cExpectedState)+'.');
                         if not CompareCycleFlux(cycleFlux, states[cExpectedState].cycleFlux) then
                           EchoLn('  End state different.');
                         foundCircuitFail := True;
@@ -797,20 +812,21 @@ begin
                 until ((cTimeToIn2LastWorking-cTimeToIn2LastFail) < ctDependencyThreshold) or foundTBLimit or foundCircuitFail or ignorePulse;
                 if (cOutFailed > -1) and (not foundCircuitFail) then // Critical timing caused by excessive output pulse delay shift
                 begin
-                  EchoLn('State '+IntToStr(cState)+': Critical timing found '+cPulseRepulsionStr+dutInput[cIn].Name+'->'+dutInput[cIn2].Name+': '
-                         +FloatToStrF(cTimeToIn2LastWorking,ffGeneral,4,2)+' s. (Pulse delay at '+dutOutput[cOutFailed].Name+' exceeded MaxDelayChange.)');
+                  EchoLn('State '+IntToStr(cState)+': Critical timing found '+cPulseRepulsionStr+String(dutInput[cIn].Name)+'->'+String(dutInput[cIn2].Name)+': '
+                         +FloatToStrF(cTimeToIn2LastWorking,ffGeneral,4,2)+' s. (Pulse delay at '+String(dutOutput[cOutFailed].Name)+' exceeded MaxDelayChange.)');
                   states[cState].inputResponse[cIn].criticalInTimes[cIn2,cSweepStep-1] := cTimeToIn2LastWorking;
                 end
                 else
                 begin
                   if (cTimeToIn2LastFail > 1e-20) or foundCT then  // Critical timing found
                   begin
-                    EchoLn('State '+IntToStr(cState)+': Critical timing found '+cPulseRepulsionStr+dutInput[cIn].Name+'->'+dutInput[cIn2].Name+': '
-                            +FloatToStrF(cTimeToIn2LastWorking,ffGeneral,4,2)+' s.' {('+IntToStr(cCountIterations)+' iterations.)'});
+                    EchoLn('State '+IntToStr(cState)+': Critical timing found '+cPulseRepulsionStr+String(dutInput[cIn].Name)
+                            +'->'+String(dutInput[cIn2].Name)+': '+FloatToStrF(cTimeToIn2LastWorking,ffGeneral,4,2)+' s.' {('+IntToStr(cCountIterations)+' iterations.)'});
                     states[cState].inputResponse[cIn].criticalInTimes[cIn2,cSweepStep-1] := cTimeToIn2LastWorking;
                   end
                   else
-                    EchoLn('State '+IntToStr(cState)+': No critical timing found '+dutInput[cIn].Name+'->'+dutInput[cIn2].Name+'. ('+IntToStr(cCountIterations)+' iterations.)');
+                    EchoLn('State '+IntToStr(cState)+': No critical timing found '+String(dutInput[cIn].Name)
+                           +'->'+String(dutInput[cIn2].Name)+'. ('+IntToStr(cCountIterations)+' iterations.)');
                   if foundCircuitFail then
                     begin
                       EchoLn('State '+IntToStr(cState)+': Circuit failure');
@@ -879,10 +895,9 @@ begin
               begin
                 ReadVariablesFromSpiceDeck(spiceDUTLines); // Rebuild parameters with random variations if applicable
                 WriteSimDeck('simdeck.js', rTimeTotal);
-                ExecuteShellApp('jsim_n', '-m simout.dat simdeck.js');  // Run JSIM_n
-                rTimeIn := FindFirstPulseTime('simout.dat',states[rState].time,2+rIn);  // Index is 1+1+rIn (array_offset(0->1)+ time + rIn'th input)
-                rTimeOut := -1;
-                rTimeOut := FindFirstPulseTime('simout.dat',states[rState].time,2+Length(dutInput)+r1);  // Index is 1+1+#inputs+r1 (array_offset(0->1)+time +#inputs + r1'th output)
+                ExecuteShellApp(engineName, simResultFilename+' simdeck.js');  // Run JSIM_n
+                rTimeIn := FindFirstPulseTime('simout.'+simResultFileSuffix,states[rState].time,2+rIn);  // Index is 1+1+rIn (array_offset(0->1)+ time + rIn'th input)
+                rTimeOut := FindFirstPulseTime('simout.'+simResultFileSuffix,states[rState].time,2+Length(dutInput)+r1);  // Index is 1+1+#inputs+r1 (array_offset(0->1)+time +#inputs + r1'th output)
                 if (rTimeOut - rTimeIn) > 1e-20 then // Clearly, an output pulse caused by this input.
                 begin
                   states[rState].inputResponse[rIn].outTimes[r1,r2] := (rTimeOut - rTimeIn);
@@ -907,8 +922,11 @@ procedure RunTBSimulations(tbsName : String);
 begin
   EchoLn('');
   EchoLn('Executing testbench simulations.');
-  ExecuteShellApp('jsim_n', '-m tb_'+tbsName+'.dat tb_'+tbsName+'.js');  // Run JSIM_n
-  ExecuteShellApp('iverilog', '-o tb_'+tbsName+' '+tbsName+'.v tb_'+tbsName+'.v');  // Run iverilog
+  if useJSIM then
+    ExecuteShellApp('jsim_n', '-m tb_'+tbsName+'.dat tb_'+tbsName+'.js')  // Run JSIM_n
+  else
+    ExecuteShellApp('josim', '-o tb_'+tbsName+'.csv tb_'+tbsName+'.js');  // Run JSIM_n
+  ExecuteShellApp('iverilog', '-gspecify -s tb_'+tbsName+' -o tb_'+tbsName+' '+tbsName+'.v tb_'+tbsName+'.v');  // Run iverilog
   ExecuteShellApp('vvp', 'tb_'+tbsName);  // Run VVP
   ExecuteShellApp('dot', '-Tpdf '+tbsName+'.gv -o '+tbsName+'.pdf'); // Run Dot to create a state diagram (Mealy FSM)
 end; // RunTBSimulations
@@ -940,7 +958,10 @@ begin
     RecalculateDelayTimes;
     // RecalculateDelayTimes only acts if there are no sweeps, and "NumberSimsTolerance" or "NumberSimsNoise" > 1.
     // Here, only the delay times are calculated as element values are varied to simulate process tolerances, or due to noise.
-    WriteVerilogModule(cellNameStr);
+    if containedVerilog then
+      WriteContainedVerilogModule(cellNameStr)
+    else
+      WriteVerilogModule(cellNameStr);
     // What can be added with minimal effort:
     //   1. Load-dependent timing parameters. If the input and output loads (individual to each input/output!) are swopped with all other cells in a library,
     //      then load-dependent timing parameters can be calculated. How this would be propagated to large-scale Verilog simulations is not yet clear.

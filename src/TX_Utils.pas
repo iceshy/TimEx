@@ -47,7 +47,13 @@ var
   wDone : Boolean;
   wSlidingWindow : array of Double;
   wDatFile, wOutFile : TextFile;
+  wSeparator : String;
+
 begin
+  wTimeInFile := 0;
+  wSeparator := ',';
+  if useJSIM then
+    wSeparator := ' ';
   AssignFile(wDatFile,wDatFileName);
   {$I-}
   Reset(wDatFile);
@@ -60,8 +66,8 @@ begin
   wTimePrev := -1;
   repeat
     ReadLn(wDatFile,wText);
-    if CheckIfReal(ReadStrFromMany(1,wText,' ')) then
-      wTimeInFile := StrToFloat(ReadStrFromMany(1,wText,' '));
+    if CheckIfReal(ReadStrFromMany(1,wText,wSeparator)) then
+      wTimeInFile := StrToFloat(ReadStrFromMany(1,wText,wSeparator));
     if (wTimeInFile > 1e-20) and (wTimeStep < 0) then
       if wTimePrev < 0 then
       begin
@@ -90,7 +96,6 @@ begin
     ReadLn(wDatFile,wText);
     if eof(wDatFile) then
     begin
-      wDone := True;
       CloseFile(wDatFile);
       CloseFile(wOutFile);
       Exit;
@@ -98,8 +103,8 @@ begin
     for w1 := 0 to (High(wSlidingWindow)-1) do  // Slide back
       wSlidingWindow[w1] := wSlidingWindow[w1+1];
 //      if CheckIfReal(ReadStrFromMany(1,fText,' ')) then
-    wTimeInFile := StrToFloat(ReadStrFromMany(1,wText,' '));
-    wSlidingWindow[High(wSlidingWindow)] := StrToFloat(ReadStrFromMany(wTrace,wText,' '));
+    wTimeInFile := StrToFloat(ReadStrFromMany(1,wText,wSeparator));
+    wSlidingWindow[High(wSlidingWindow)] := StrToFloat(ReadStrFromMany(wTrace,wText,wSeparator));
     wAcc := 0;
     for w1 := 1 to High(wSlidingWindow) do // Integrate
       wAcc := wAcc + (wSlidingWindow[w1]+wSLidingWindow[w1-1])/2*wTimeStep;

@@ -92,8 +92,8 @@ begin
   cCount := 0;
   for ci := 0 to High(spiceDUTLines) do
   begin
-    cText := LowerCase(spiceDUTLines[ci]);
-    if (cText[1] in ['l','b']) then
+    cText := LowerCase(String(spiceDUTLines[ci]));
+    if (ANSIChar(cText[1]) in ['l','b']) then
       inc(cCount);
   end;
   GetCycleCount := cCount;
@@ -110,17 +110,17 @@ begin
   sfComp_nr := 0;
   for sf1 := 0 to High(spiceDUTLines) do
   begin
-    sfText := spiceDUTLines[sf1];
+    sfText := String(spiceDUTLines[sf1]);
     LnTABReplace(sfText);
-    if (sfText[1] in ['l','b']) then
+    if (ANSIChar(sfText[1]) in ['l','b']) then
     begin
       sfText := StringReplace(sfText,#9,' ',[rfReplaceAll]);
-      nameList[sfc] := ReadStrFromMany(1,sfText,' ');
-      portList[sfj] := ReadStrFromMany(2,sfText,' ');
-      origi_ports[sfComp_nr][0] := ReadStrFromMany(2,sfText,' ');
+      nameList[sfc] := ANSIString(ReadStrFromMany(1,sfText,' '));
+      portList[sfj] := ANSIString(ReadStrFromMany(2,sfText,' '));
+      origi_ports[sfComp_nr][0] := ANSIString(ReadStrFromMany(2,sfText,' '));
       inc(sfj);
-      portList[sfj] := ReadStrFromMany(3,sfText,' ');
-      origi_ports[sfComp_nr][1] := ReadStrFromMany(3,sfText,' ');
+      portList[sfj] := ANSIString(ReadStrFromMany(3,sfText,' '));
+      origi_ports[sfComp_nr][1] := ANSIString(ReadStrFromMany(3,sfText,' '));
       inc(sfComp_nr);
       inc(sfj);
       inc(sfc);
@@ -321,13 +321,8 @@ var
   fcSearch, fcPrevPrev, fcUsed, fcEnd, fcStart, fcRepeat, fcCopy : integer;
 
 begin
-  fcSearch := 0;
-  fcPrevPrev := 0;
   fcUsed := 0;
-  fcEnd := 0;
-  fcStart := 0;
   fcRepeat := 0;
-  fcCopy := 0;
   repeat
     if IsNewVertex(fci, fcj, fcPrev) then
     begin
@@ -395,7 +390,7 @@ begin
           fcSearch := 0;
           while ((fcSearch < (portTotal + 1)) and (fcDone[fcSEarch] <> -1)) do
             inc(fcSearch);
-          fcDone[fcSearch - 1] := -1;  dec(fcSearch);
+          fcDone[fcSearch - 1] := -1;
           inc(fcj);
         end
         else
@@ -427,7 +422,6 @@ begin
   while ((fcSearch < (portTotal-1)) and (fcDone[fcSearch] <> -1)) do
     inc(fcSearch);
   fcDone[fcSearch - 1] := -1;
-  dec(fcSearch);
 end; // FindCycle
 { ------------------------------ FindAllCycles ------------------------------- }
 procedure FindAllCycles;
@@ -461,8 +455,6 @@ var
   icN, icM, ici, icj, icp, icq : integer;
 
 begin
-  icN := 0;
-  icM := 0;
   for ici := 0 to maxI do
     for icj := 0 to maxJ do
       if cOut[ici,icj] = -1 then
@@ -512,9 +504,6 @@ end; // RemoveInvalidCycles;
 { ---------------------------- FindValidCycles ------------------------------- }
 procedure FindValidCycles;
 
-var
-  vci, vcj : integer;
-
 begin
   FindAllCycles;
   GetMatrixDimensions;
@@ -526,7 +515,6 @@ procedure WriteCyclesFile;
 
 var
   wcfi, wcfj : integer;
-  wcfp, wcfe, wcf1, wcfSharedNodes : integer;
   wcfs : String;
 
 begin
@@ -555,7 +543,7 @@ begin
   begin
     wcfs := '[';
     for wcfj := 0 to High(cycleList[wcfi]) do
-      wcfs := wcfs + cycleList[wcfi,wcfj] + ',';
+      wcfs := wcfs + String(cycleList[wcfi,wcfj]) + ',';
     delete(wcfs,Length(wcfs),1);
     EchoLn(wcfs+']');
   end;
@@ -568,7 +556,7 @@ var
   cElementAdded : Boolean;
 
 begin
-  cv := 0; ck := 0;
+  cv := 0;
   componentTotal := GetCycleCount;
   SetLength(portList,componentTotal*2);
   portTotal := 0;
@@ -609,18 +597,18 @@ begin
       if (ci = 0) and (cj = 0) then
       begin
         SetLength(elements,Length(elements)+1);
-        elements[High(elements)].Name := StripMinus(cycleList[ci, cj]);
+        elements[High(elements)].Name := ANSIString(StripMinus(String(cycleList[ci, cj])));
       end
       else
       begin
         cElementAdded := False;
         for ck := 0 to High(elements) do
-          if StripMinus(cycleList[ci, cj]) = elements[ck].Name then
+          if StripMinus(String(cycleList[ci, cj])) = String(elements[ck].Name) then
             cElementAdded := True;
         if not cElementAdded then
         begin
           SetLength(elements,Length(elements)+1);
-          elements[High(elements)].Name := StripMinus(cycleList[ci, cj]);
+          elements[High(elements)].Name := ANSIString(StripMinus(String(cycleList[ci, cj])));
         end;
       end;
     end;

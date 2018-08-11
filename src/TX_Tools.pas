@@ -56,7 +56,7 @@ var
   SEInfo: TShellExecuteInfo;
   ExitCode: DWORD;
   {$ENDIF MSWINDOWS}
-  ExecuteFile, ExecuteShellFile, ParamString, StartInString : string;
+  ExecuteShellFile, ParamString, StartInString : string;
 
 
 { ------------------------- CrossPlatformDeleteFile -------------------------- }

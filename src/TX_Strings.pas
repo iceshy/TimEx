@@ -68,7 +68,7 @@ end; // ExitWithHaltCode
 function StringIsDigit(siChar : Char) : boolean;
 
 begin
-  if siChar in ['0'..'9'] then
+  if ANSIChar(siChar) in ['0'..'9'] then
     StringIsDigit := True
   else
     StringIsDigit := False;
@@ -81,10 +81,10 @@ var
   rvRet : Double;
 begin
   rvRet := 0;
-  if rv[1] in ['a'..'z','A'..'Z','_'] then
+  if ANSIChar(rv[1]) in ['a'..'z','A'..'Z','_'] then
   begin
     for rv1 := 0 to High(spiceVariables) do
-      if spiceVariables[rv1].name = Copy(rv,1,Length(rv)) then
+      if spiceVariables[rv1].name = ANSIString(Copy(rv,1,Length(rv))) then
         rvRet := spiceVariables[rv1].value;
   end
   else
@@ -101,7 +101,7 @@ var
   sv1 : Integer;
 begin
   for sv1 := 0 to High(spiceVariables) do
-    if LowerCase(spiceVariables[sv1].name) = LowerCase(svName) then
+    if LowerCase(String(spiceVariables[sv1].name)) = LowerCase(svName) then
       spiceVariables[sv1].Value := svValue;
 end; // SetSpiceVariableValue
 { ---------------------- ReplacePlusMinusArithmeticOps ----------------------- }
@@ -183,12 +183,10 @@ begin
   // Firstly, evaluate the parentheses.
   if (Length(eeStr) > 1) and (pos('(',eeStr) > 0) then // Cannot open and close parentheses in only one string character
   begin
-    pOpenFound := False;
     ee1 := Length(eeStr)-1;
     repeat
       if copy(eeStr,ee1,1) = '(' then    // Last opening parenthesis found - now look for closing parenthesis
       begin
-        pOpenFound := True;
         ee2 := ee1+1;
         pClosedFound := False;
         repeat
@@ -200,7 +198,6 @@ begin
         if not pClosedFound then
           ExitWithHaltCodeStrings('Cannot find closing parenthesis in "'+eeStr+'".', 3);
         eeTempStr1 := ''; eeTempStr2 := '';
-        pOpenFound := False; pClosedFound := False;
         if ee1 > 1 then
           eeTempStr1 := Copy(eeStr,1,ee1-1);
         if ee2 < Length(eeStr) then
@@ -245,7 +242,7 @@ begin
     if eeStr <> '' then
     begin
 //      if eeStr[1] = '@' then
-      if (eeStr[1] in ['a'..'z','A'..'Z','_']) then
+      if (ANSIChar(eeStr[1]) in ['a'..'z','A'..'Z','_']) then
         EvaluateSpiceExpression := leadingMinus * ReadSpiceVariableValue(eeStr)
       else
       begin
@@ -303,7 +300,7 @@ var
 begin
   suffixFound := False;  stdMultiplier := 1;
   for std1 := 1 to Length(txtext) do
-    if not ((ord(txtext[std1]) in [48..57]) or (txtext[std1] in ['.', ',', 'e', 'E', '+', '-'])) then
+    if not ((ord(ANSIChar(txtext[std1])) in [48..57]) or (ANSIChar(txtext[std1]) in ['.', ',', 'e', 'E', '+', '-'])) then
       begin
         if LowerCase(txtext[std1]) = 'a' then
           begin

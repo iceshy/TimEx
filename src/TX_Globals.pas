@@ -36,13 +36,9 @@ type
   {enumerated types, alphabetically}
   SourceTypeEnumerated = (Current,Voltage);
 const
-{$IFDEF MSWINDOWS}
-  VersionNumber = '2.02.01';
-{$ELSE}
-  VersionNumber = '2.02.01 Linux 64-bit';
-{$ENDIF}
+  VersionNumber = '2.03.00';
   CopyRightNotice = 'Copyright 2016-2018 Coenrad Fourie, Stellenbosch University.';
-  BuildDate = '3 Apr 2018';
+  BuildDate = '11 August 2018';
   SpiceDeckLineLengthMax = 255;  // Maximum allowable characters in JSIM deck file lines. (Delphi dynamic arrays are prone to crashing if unlimited strings are used.)
   PHI_0 = 2.067833758e-15;
   EPSILON = 1e-20; // Arbitrary small number to test divide-by-zero occurrence
@@ -99,9 +95,9 @@ type
   TSpiceVariable = array of TSpiceVariableRecord;
 
 var
-  defFileParam, {loadFileParam,} loadInFileParam, loadOutFileParam, sinkFileParam, sourceFileParam, stateMapFileParam : Integer;
+  defFileParam, loadInFileParam, loadOutFileParam, sinkFileParam, sourceFileParam, stateMapFileParam : Integer;
   outFile, spiceFile : TextFile;
-  executeFile, engineName, dutCellName, cellNameStr, stateMapFileName : String;
+  executeFile, engineName, dutCellName, cellNameStr, stateMapFileName, simResultFileName, simResultFileSuffix : String;
   spiceDUTLines, spiceLoadInLines, spiceLoadOutLines, spiceSinkLines, spiceSourceLines : TSpiceDeckLine;
   dutInput, dutOutput : DUTPortsArray;
   cycleList : cycleListArray;
@@ -122,6 +118,8 @@ var
   spiceVariables : TSpiceVariable;
   sweepNominal : array of integer;
   applyRandom : boolean; // If false, gauss(mean, stddev) evaluates to (mean) - used for nominal analysis
+  useJSIM : boolean;
+  containedVerilog : boolean;
 
 implementation
 

@@ -60,7 +60,7 @@ begin
   cb := true;
   if length(TestStr) = 1 then
     if not (ord(TestStr[1]) in [48..57]) then cb := false;
-  if not ((TestStr[1] in ['+','-']) or (ord(TestStr[1]) in [48..57])) then
+  if not ((ANSIChar(TestStr[1]) in ['+','-']) or (ord(TestStr[1]) in [48..57])) then
     cb := false;
   for c1 := 2 to length(TestStr) do
     if not (ord(TestStr[c1]) in [48..57]) then  // check if ordinal values of every character is in range 48 (0) to 57 (9)
@@ -75,7 +75,7 @@ var
   cb, cexpfound, cpointfound, cesignfound, cefound : boolean;
 
 begin
-  cb := true; cexpfound := false; cpointfound := false; cefound := false;
+  cb := true; cexpfound := false; cpointfound := false; cefound := false; cesignfound := false;
   while copy(TestStr,1,1) = ' ' do
     delete(TestStr,1,1);                // strip leading spaces
   if TestStr = '' then // It's empty!
@@ -87,7 +87,7 @@ begin
     delete(TestStr,length(TestStr),1);  // strip trailing spaces
   if length(TestStr) = 1 then
     if not (ord(TestStr[1]) in [48..57]) then cb := false;
-  if not ( (ord(TestStr[1]) in [48..57]) or (TestStr[1] in ['-','+','.']) ) then
+  if not ( (ord(TestStr[1]) in [48..57]) or (ANSIChar(TestStr[1]) in ['-','+','.']) ) then
     cb := false;
   if  copy(TestStr,1,1) = '.' then
     cpointfound := true;
@@ -96,19 +96,22 @@ begin
     if (cpointfound or cefound) and (copy(TestStr,c1,1) = '.') then
       cb := false;
     if copy(TestStr,c1,1) = '.' then cpointfound := true;
-    if (not cefound) and (TestStr[c1] in ['-','+']) then
+    if (not cefound) and (ANSIChar(TestStr[c1]) in ['-','+']) then
       cb := false;
     if cefound and (ord(TestStr[c1]) in [48..57]) then
       cexpfound := true;
-    if not ( (ord(TestStr[c1]) in [48..57]) or (TestStr[c1] in ['-','+','.','e','E']) ) then cb := false;
-    if cefound and (TestStr[c1] in ['e','E']) then
+    if not ( (ord(TestStr[c1]) in [48..57]) or (ANSIChar(TestStr[c1]) in ['-','+','.','e','E']) ) then cb := false;
+    if cefound and (ANSIChar(TestStr[c1]) in ['e','E']) then
       cb := false;
-    if TestStr[c1] in ['e','E'] then
+    if ANSIChar(TestStr[c1]) in ['e','E'] then
       cefound := true;
-    if (cefound and cexpfound) and (TestStr[c1] in ['-','+']) then
+    if (cefound and cexpfound) and (ANSIChar(TestStr[c1]) in ['-','+']) then
       cb := false;
-    if (cefound and (not cexpfound)) and (TestStr[c1] in ['-','+']) then
-      cesignfound := true;
+    if (cefound and (not cexpfound)) and (ANSIChar(TestStr[c1]) in ['-','+']) then
+      if not cesignfound then
+        cesignfound := true
+      else
+        cb := false;
   end;
   CheckIfReal := cb;
 end; // CheckIfReal
