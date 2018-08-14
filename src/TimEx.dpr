@@ -3,7 +3,7 @@ program TimEx;
 {*******************************************************************************
 *                                                                              *
 * Author    :  Coenrad Fourie                                                  *
-* Version   :  2.03                                                            *
+* Version   :  2.03.01                                                            *
 * Date      :  August 2018                                                     *
 * Copyright (c) 2016-2018 Coenrad Fourie                                       *
 *                                                                              *
@@ -11,7 +11,7 @@ program TimEx;
 * Developed originally under IARPA-BAA-14-03  (v1.0)                           *
 * Improved by Stellenbosch University under IARPA-BAA-16-03 (v2.0)             *
 *                                                                              *
-* Last modification: 11 August 2018                                            *
+* Last modification: 14 August 2018                                            *
 *      Support for SDF timing files, vcd_assert and JoSIM added                *
 *      Linux build improved                                                    *
 *      Parameter sweeps, PTL interconnects and parameter functions added       *

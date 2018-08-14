@@ -36,9 +36,9 @@ type
   {enumerated types, alphabetically}
   SourceTypeEnumerated = (Current,Voltage);
 const
-  VersionNumber = '2.03.00';
+  VersionNumber = '2.03.01';
   CopyRightNotice = 'Copyright 2016-2018 Coenrad Fourie, Stellenbosch University.';
-  BuildDate = '11 August 2018';
+  BuildDate = '14 August 2018';
   SpiceDeckLineLengthMax = 255;  // Maximum allowable characters in JSIM deck file lines. (Delphi dynamic arrays are prone to crashing if unlimited strings are used.)
   PHI_0 = 2.067833758e-15;
   EPSILON = 1e-20; // Arbitrary small number to test divide-by-zero occurrence

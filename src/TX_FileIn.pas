@@ -455,7 +455,12 @@ begin
           ReadCleanLn(defFile,dText);
           dPar := ReadStrFromMany(1, dText, ' ');
           if dPar = 'sweep' then
-            ReadSweepFromControl(dText);
+            if containedVerilog then
+            begin
+              ReadSweepFromControl(dText);
+            end
+            else
+              EchoLn('Swept parameters not supported with SDF file. "'+dText+'" ignored.');
         until dPar = '$end';   // of Control block
       end;
       if dParBlock = '$defaultloadin' then   // Read input load block;

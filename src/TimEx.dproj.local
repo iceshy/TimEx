@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<ProjectSortOrder AutoSort="0" SortType="0">
+    <File Path="TX_Cycles.pas"/>
+    <File Path="TX_FileIn.pas"/>
+    <File Path="TX_FileOut.pas"/>
+    <File Path="TX_Globals.pas"/>
+    <File Path="TX_Math.pas"/>
+    <File Path="TX_Strings.pas"/>
+    <File Path="TX_Tools.pas"/>
+    <File Path="TX_Utils.pas"/>
+  </ProjectSortOrder>
+</BorlandProject>

@@ -293,25 +293,20 @@ begin
     WriteLn(vmFile,'assign '+String(dutOutput[vm1].Name)+' = internal_'+String(dutOutput[vm1].Name)+';');
   WriteLn(vmFile);
 
-  if High(states) = 0 then
-    WriteLn(vmFile,'// Single state')
+  WriteLn(vmFile,'// Define state');
+  WriteLn(vmFile,'integer state;');
+  WriteLn(vmFile);
+  WriteLn(vmFile,'wire');
+  vmStr := '  ';
+  for vmState := 0 to High(states) do
+    if vmState < High(states) then
+      vmStr := vmStr+'internal_state_'+IntToStr(vmState)+', '
   else
-  begin
-    WriteLn(vmFile,'// Define state');
-    WriteLn(vmFile,'integer state;');
-    WriteLn(vmFile);
-    WriteLn(vmFile,'wire');
-    vmStr := '  ';
-    for vmState := 0 to High(states) do
-      if vmState < High(states) then
-        vmStr := vmStr+'internal_state_'+IntToStr(vmState)+', '
-    else
-      vmStr := vmStr+'internal_state_'+IntToStr(vmState)+';';
-    WriteLn(vmFile,vmStr);
-    WriteLn(vmFile);
-    for vmState := 0 to High(states) do
-      WriteLn(vmFile,'assign internal_state_'+IntToStr(vmState)+' = state === '+IntToStr(vmState)+';');
-  end;
+    vmStr := vmStr+'internal_state_'+IntToStr(vmState)+';';
+  WriteLn(vmFile,vmStr);
+  WriteLn(vmFile);
+  for vmState := 0 to High(states) do
+    WriteLn(vmFile,'assign internal_state_'+IntToStr(vmState)+' = state === '+IntToStr(vmState)+';');
 
   WriteLn(vmFile);
   WriteLn(vmFile,'specify');
@@ -395,12 +390,10 @@ begin
   if High(states) > 0 then
     WriteLn(vmFile,'// Set initial state');
   WriteLn(vmFile,'initial begin');
-  if High(states) > 0 then
-    WriteLn(vmFile,'   state = 1''bX;');
+  WriteLn(vmFile,'   state = 1''bX;');
   for vmOut := 0 to High(dutOutput) do
-    WriteLn(vmFile,'   internal_'+dutOutput[vmOut].Name+' = 0; // All outputs start at 0');    
-  if High(states) > 0 then
-    WriteLn(vmFile,'   #begin_time state = 0;');
+    WriteLn(vmFile,'   internal_'+dutOutput[vmOut].Name+' = 0; // All outputs start at 0');
+  WriteLn(vmFile,'   #begin_time state = 0;');
   WriteLn(vmFile,'   end');  WriteLn(vmFile);
 
   // Now for every input
@@ -574,7 +567,7 @@ begin
   WriteLn(vmFile,'    (VERSION "'+versionNumber+'")');
   WriteLn(vmFile,'    (DIVIDER .)');
   WriteLn(vmFile,'    (PROCESS "typical")         // For documentation purposes only.');
-  WriteLn(vmFile,'    (TEMPERATURE 4:1:5)');
+  WriteLn(vmFile,'    (TEMPERATURE 3:4:5)');
   WriteLn(vmFile,'    (TIMESCALE 100fs)');
   WriteLn(vmFile,'    (CELL');
   WriteLn(vmFile,'        (CELLTYPE "'+vmName+'")');
