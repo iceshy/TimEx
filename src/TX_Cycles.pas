@@ -3,15 +3,13 @@ unit TX_Cycles;
 {*******************************************************************************
 *                                                                              *
 * Author    :  Coenrad Fourie                                                  *
-* Version   :  2.0                                                             *
-* Date      :  June 2017                                                       *
-* Copyright (c) 2016-2017 Coenrad Fourie                                       *
+* Version   :  2.04                                                            *
+* Copyright (c) 2016-2020 Coenrad Fourie                                       *
 *                                                                              *
 * Developed by Stellenbosch University under IARPA-BAA-16-03 (v2.0)            *
 *                                                                              *
-* Last modification: 16 June 2017                                              *
-*      Change to verilog models applied                                        *
-*      Linux build improved                                                    *
+* Last modification: 1 April 2020                                              *
+*      JoSIM support improved                                                  *
 *                                                                              *
 * This work was supported by the Office of the Director of National            *
 * Intelligence (ODNI), Intelligence Advanced Research Projects Activity        *

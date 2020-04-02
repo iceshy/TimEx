@@ -2,7 +2,7 @@ unit TX_FileIn;
 
 {*******************************************************************************
 *    Unit TX_FileIn (for use with TimEx)                                       *
-*    Copyright (c) 2016-2018 Coenrad Fourie                                    *
+*    Copyright (c) 2016-2020 Coenrad Fourie                                    *
 *                                                                              *
 * This work was supported by the Office of the Director of National            *
 * Intelligence (ODNI), Intelligence Advanced Research Projects Activity        *
@@ -198,8 +198,8 @@ begin
     end
     else // JoSIM writes the variable names differently
     begin
-      if Pos('device current',rVarName) > 0 then
-        Delete(rVarName,1,15);  // Delete "DEVICE CURRENT " from every variable name
+      if Pos('i(',rVarName) > 0 then
+        Delete(rVarName,1,3);  // Delete "I( " from every variable name
       if Pos('|xdut',rVarName) > 0 then    // delete the "_xdut" a the end, otherwise the names don't match elements.
       begin
         rVarname := copy(rVarName,1,pos('|xdut',rVarName)-1);

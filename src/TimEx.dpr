@@ -3,18 +3,18 @@ program TimEx;
 {*******************************************************************************
 *                                                                              *
 * Author    :  Coenrad Fourie                                                  *
-* Version   :  2.03.01                                                            *
-* Date      :  August 2018                                                     *
-* Copyright (c) 2016-2018 Coenrad Fourie                                       *
+* Version   :  2.04                                                         *
+* Copyright (c) 2016-2020 Coenrad Fourie                                       *
 *                                                                              *
 * Timing extractor and Verilog HDL file writer for SFQ logic cells.            *
 * Developed originally under IARPA-BAA-14-03  (v1.0)                           *
 * Improved by Stellenbosch University under IARPA-BAA-16-03 (v2.0)             *
 *                                                                              *
-* Last modification: 14 August 2018                                            *
+* Last modification: 1 April 2020                                              *
 *      Support for SDF timing files, vcd_assert and JoSIM added                *
 *      Linux build improved                                                    *
 *      Parameter sweeps, PTL interconnects and parameter functions added       *
+*      JoSIM v2.4 supported                                                    *
 *                                                                              *
 * This work was supported by the Office of the Director of National            *
 * Intelligence (ODNI), Intelligence Advanced Research Projects Activity        *
@@ -328,12 +328,38 @@ begin
           dutInput[High(dutInput)].Name := ANSIString(copy(fPortNameStr,4,Length(fPortNameStr)-3));
           dutInput[High(dutInput)].Node := ANSIString(fPortNodeStr);
         end;
+        if length(fPortNameStr) = 1 then
+          if ANSIChar(fPortNameStr[1]) in ['a'..'p'] then
+          begin
+            SetLength(dutInput,Length(dutInput)+1);
+            dutInput[High(dutInput)].Name := ANSIString(fPortNameStr);
+            dutInput[High(dutInput)].Node := ANSIString(fPortNodeStr);
+          end;
+        if fPortNameStr = 'clk' then
+        begin
+          SetLength(dutInput,Length(dutInput)+1);
+          dutInput[High(dutInput)].Name := ANSIString(fPortNameStr);
+          dutInput[High(dutInput)].Node := ANSIString(fPortNodeStr);
+        end;
         if copy(fPortNameStr,1,4) = 'out_' then
         begin
           SetLength(dutOutput,Length(dutOutput)+1);
           dutOutput[High(dutOutput)].Name := ANSIString(copy(fPortNameStr,5,Length(fPortNameStr)-4));
           dutOutput[High(dutOutput)].Node := ANSIString(fPortNodeStr);
         end;
+        if fPortNameStr = 'q' then
+        begin
+          SetLength(dutOutput,Length(dutOutput)+1);
+          dutOutput[High(dutOutput)].Name := ANSIString(fPortNameStr);
+          dutOutput[High(dutOutput)].Node := ANSIString(fPortNodeStr);
+        end;
+        if length(fPortNameStr) > 1 then
+          if fPortNameStr[1] = 'q' then
+          begin
+            SetLength(dutOutput,Length(dutOutput)+1);
+            dutOutput[High(dutOutput)].Name := ANSIString(fPortNameStr);
+            dutOutput[High(dutOutput)].Node := ANSIString(fPortNodeStr);
+          end;
       until (fPortNameStr = ' ') or (f2 > 255);
       if f2 > 255 then
         ExitWithHaltCode('Too many ports read from DUT subcircuit definition (256). String processing error?',34);

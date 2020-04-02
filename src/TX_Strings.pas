@@ -2,7 +2,7 @@ unit TX_Strings;
 
 {*******************************************************************************
 *    Unit TX_Strings (for use with TimEx)                                      *
-*    Copyright (c) 2016-2018 Coenrad Fourie                                    *
+*    Copyright (c) 2016-2020 Coenrad Fourie                                    *
 *                                                                              *
 * This work was supported by the Office of the Director of National            *
 * Intelligence (ODNI), Intelligence Advanced Research Projects Activity        *

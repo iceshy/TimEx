@@ -2,7 +2,7 @@ unit TX_Globals;
 
 {*******************************************************************************
 *    Unit TX_Globals (for use with TimEx)                                      *
-*    Copyright (c) 2016-2018 Coenrad Fourie                                    *
+*    Copyright (c) 2016-2020 Coenrad Fourie                                    *
 *                                                                              *
 * This work was supported by the Office of the Director of National            *
 * Intelligence (ODNI), Intelligence Advanced Research Projects Activity        *
@@ -36,9 +36,9 @@ type
   {enumerated types, alphabetically}
   SourceTypeEnumerated = (Current,Voltage);
 const
-  VersionNumber = '2.03.01';
-  CopyRightNotice = 'Copyright 2016-2018 Coenrad Fourie, Stellenbosch University.';
-  BuildDate = '14 August 2018';
+  VersionNumber = '2.04';
+  CopyRightNotice = 'Copyright 2016-2020 Coenrad Fourie, Stellenbosch University.';
+  BuildDate = '2 April 2020';
   SpiceDeckLineLengthMax = 255;  // Maximum allowable characters in JSIM deck file lines. (Delphi dynamic arrays are prone to crashing if unlimited strings are used.)
   PHI_0 = 2.067833758e-15;
   EPSILON = 1e-20; // Arbitrary small number to test divide-by-zero occurrence

@@ -1,8 +1,8 @@
 unit TX_FileOut;
 
 {*******************************************************************************
-*    Unit TX_FileOut (for use with TimEx)                                       *
-*    Copyright (c) 2016-2018 Coenrad Fourie                                    *
+*    Unit TX_FileOut (for use with TimEx)                                      *
+*    Copyright (c) 2016-2020 Coenrad Fourie                                    *
 *                                                                              *
 * This work was supported by the Office of the Director of National            *
 * Intelligence (ODNI), Intelligence Advanced Research Projects Activity        *
@@ -151,7 +151,10 @@ begin
   for sd1 := 0 to High(dutOutput) do
     WriteLn(deckFile,'.PRINT NODEV '+IntToStr(dutOutput[sd1].Number)+' 0');
   for sd1 := 0 to High(elements) do
-    WriteLn(deckFile,'.PRINT DEVI XDUT_'+UpperCase(String(elements[sd1].Name)));
+    if useJSIM then
+      WriteLn(deckFile,'.PRINT DEVI XDUT_'+UpperCase(String(elements[sd1].Name)))
+    else
+      WriteLn(deckFile,'.PRINT DEVI '+UpperCase(String(elements[sd1].Name))+'.XDUT');
 //  for sd1 := 0 to High(elements) do
 //    if elements[sd1].Name[1] = 'b' then
 //      WriteLn(deckFile,'.PRINT PHASE XDUT_'+UpperCase(elements[sd1].Name));
@@ -245,7 +248,7 @@ begin
   WriteLn(vmFile,'// U.S. Air Force Research Laboratory contract FA8750-15-C-0203 and');
   WriteLn(vmFile,'// IARPA-BAA-16-03 via U.S. Army Research Office grant W911NF-17-1-0120.');
   WriteLn(vmFile,'// For questions about TimEx, contact CJ Fourie, coenrad@sun.ac.za');
-  WriteLn(vmFile,'// (c) 2016-2018 Stellenbosch University');
+  WriteLn(vmFile,'// (c) 2016-2020 Stellenbosch University');
   WriteLn(vmFile,'// ---------------------------------------------------------------------------');
   WriteLn(vmFile,'`ifndef begin_time');
   WriteLn(vmFile,'`define begin_time 8');
