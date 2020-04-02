@@ -2,6 +2,10 @@
 TimEx Change Log - v2.00
 =============================================
 
+v2.04.00 - 2 April 2020
+* Added:   Support for SFQ logic pin names in SuperTools ColdFlux cell library standard.
+* Changed: Subcircuit plot syntax when JoSIM is used.
+
 v2.03.00 - 11 August 2018
 * Added:   Support for vcd_assert, SDF file output.
 * Added:   Support for JoSIM.
