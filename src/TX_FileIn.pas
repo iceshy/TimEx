@@ -105,6 +105,7 @@ var
   rev1, rev2, rev3 : Integer;
   revText, revStr : String;
   revValue, revCrit : Double;
+  rSuccess : boolean;
 
 begin
   // Firstly, get the JJ models.
@@ -117,7 +118,7 @@ begin
         jjModels[High(jjModels)].Name := ANSIString(LowerCase(ReadStrFromMany(2,String(spiceDUTLines[rev1]),' ')));
         revStr := ReadValueAfterEqualSign(LowerCase(String(spiceDUTLines[rev1])),'icrit');
 //        jjModels[High(jjModels)].Value := StringToDouble(revStr);
-        jjModels[High(jjModels)].Value := ConvertToValue(revStr);
+        jjModels[High(jjModels)].Value := ConvertToValue(revStr,rSuccess);
       end;
   end;
   for rev1 := 0 to High(elements) do
@@ -130,13 +131,13 @@ begin
         if elements[rev1].Name[1] = 'l' then  // inductor
         begin
           revStr := ReadStrFromMany(4,String(spiceDUTLines[rev2]),' '); // Read the value
-          elements[rev1].Value := ConvertToValue(revStr);
+          elements[rev1].Value := ConvertToValue(revStr,rSuccess);
         end;
         if elements[rev1].Name[1] = 'b' then  // junction
         begin
           revStr := ReadValueAfterEqualSign(LowerCase(String(spiceDUTLines[rev2])),'area');  // Read the junction area
           if revStr <> '' then
-            revValue := ConvertToValue(revStr)
+            revValue := ConvertToValue(revStr,rSuccess)
           else
             revValue := 1.0; // default
           revStr := LowerCase(ReadStrFromMany(4,String(spiceDUTLines[rev2]),' ')); // Read the JJ model name
@@ -236,21 +237,58 @@ end; // ReadCurrentValues
 procedure ReadVariablesFromSpiceDeck(var rvDeckLines : TSpiceDeckLine);
 
 var
-  rv1, rv2, rvV, rvNum : integer;
-  rvStr, rvSubStr, rvPar, rvLeft, rvRight, rvSnippet : string;
+  rv1, rv2, rvV, rvNum, rvParamsUnknownLast, rvParamsUnknown : integer;
+  rvStr, rvPar : string;
   rvValue : double;
-  noExpressions : boolean;
+  evaluatedOK : boolean;
 
 begin
-  rv1 := 0;
-  repeat
-    rvStr := String(rvDeckLines[rv1]);
-    inc(rv1);
-    rvPar := ReadStrFromMany(1, rvStr, ' ');
-    if rvPar = '.param' then
-    begin
-      Delete(rvStr,1,Length(rvPar)+1);
-      repeat  // read all parameters in the line
+  rvParamsUnknown := 0;
+  rvParamsUnknownLast := 0;
+  repeat // Until no unknown paramaters
+    rvParamsUnknownLast := rvParamsUnknown;
+    rvParamsUnknown := 0;
+    rv1 := 0;
+    repeat
+      rvStr := String(rvDeckLines[rv1]);
+      inc(rv1);
+      rvPar := ReadStrFromMany(1, rvStr, ' ');
+      evaluatedOK := true;
+      if rvPar = '.param' then
+      begin
+        Delete(rvStr,1,Length(rvPar)+1);
+        StripSpaces(rvStr);
+        // Now support only one parameter entry per line, without braces
+        rvPar := LowerCase(ReadStrFromMany(1,rvStr,'='));
+        rvValue := EvaluateSpiceExpression(StripSpaces(ReadStrFromMany(2,rvStr,'=')),1,evaluatedOK);
+        if Length(rvPar) > 0 then
+          if evaluatedOK then
+          begin
+            rvNum := -1;
+            for rvV := 0 to High(spiceVariables) do
+              if spiceVariables[rvV].Name = ANSIString(rvPar) then
+                rvNum := rvV;
+            if rvNum = -1 then
+            begin
+              SetLength(spiceVariables,Length(spiceVariables)+1);
+              rvNum := High(spiceVariables);
+            end;
+            with spiceVariables[rvNum] do
+            begin
+              Name := ANSIString(rvPar);
+              Value := rvValue;
+            end;
+            for rv2 := 0 to High(sweeps) do
+            begin
+              if LowerCase(String(sweeps[rv2].SweepVar)) = rvPar then
+                sweeps[rv2].Nominal := spiceVariables[rvNum].Value; // Store the nominal value
+            end;
+          end
+          else
+             inc(rvParamsUnknown);
+
+
+(*      repeat  // read all parameters in the line
         // Firstly, evaluate expressions if there are any
         repeat
           noExpressions := true;
@@ -307,8 +345,12 @@ begin
             end;
           end;
       until rvStr = '';   // of Parameter block
-    end;
-  until (rv1 >= High(rvDeckLines));
+*)
+      end;
+    until (rv1 >= High(rvDeckLines));
+    if (rvParamsUnknown = rvParamsUnknownLast) and (rvParamsUnknown > 0) then
+      ExitWithHaltCode('Cannot resolve all .param statements in netlist '+String(rvDeckLines[0]),1);
+  until (rvParamsUnknown = rvParamsUnknownLast) or (rvParamsUnknown = 0);
 end; // ReadVariablesFromSpiceDeck
 { --------------------------- ReadSweepFromControl --------------------------- }
 procedure ReadSweepFromControl(rsText : string);
@@ -507,11 +549,13 @@ begin
     ReadLn(rsFile, rsTextLine);
     rsTextLine := StringReplace(rsTextLine,#9,' ',[rfReplaceAll]); // Replace TAB characters with spaces
     if length(rsTextLine) > 1 then
+    begin
       if ANSIChar(rsTextLine[1]) in ['l','L','b','B'] then
         // Replace underscore characters in L/B element names with 'u' - otherwise the print command fails for subcircuit elements
         rsTextLine := StringReplace(rsTextLine,'_','u',[rfReplaceAll]);
-     SetLength(rsMemLines, Length(rsMemLines)+1);       // Increase length of dynamic array.
-    rsMemLines[High(rsMemLines)] := ANSIString(rsTextLine);         // Write rsTextLine to memory.
+      SetLength(rsMemLines, Length(rsMemLines)+1);       // Increase length of dynamic array.
+      rsMemLines[High(rsMemLines)] := ANSIString(rsTextLine);         // Write rsTextLine to memory.
+    end;
   end;
   ReadVariablesFromSpiceDeck(rsMemLines);
   EchoLn(rsMessage);

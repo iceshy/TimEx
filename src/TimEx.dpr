@@ -607,7 +607,7 @@ var
   cSweep, cSweepStep, cState, cIn, cOut, cIn2, cExpectedState, c1, c2, cCountIterations, cOutFailed, cNumSweepSteps : Integer;
   cTimeToIn2, cTimeToIn2LastWorking, cTimeToIn2LastFail, cTimeIn, cTimeIn2, cTimeOutFromIn: double;
   cTimeOutFromIn2, cSweepValue, cSweepStepValClosestToNom, cSweepNomVal : Double;
-  foundCT, cUnaccountedOut, foundTBLimit, foundCircuitFail, functionalAtStep, ignorePulse : Boolean;
+  foundCT, cUnaccountedOut, foundTBLimit, foundCircuitFail, functionalAtStep, ignorePulse, readOK : Boolean;
   cPulseRepulsionStr : string;
 
 begin
@@ -626,7 +626,7 @@ begin
       sweepNominal[cSweep] := 1; // Assume at the start that the first step is the nominal value. We'll find the closest step later.
       SetLength(sweeps[cSweep].FunctionalAtStep,cNumSweepSteps+1); // For direct addressing, ignore the 0th element and set array one longer than number of sweep steps
       cSweepStepValClosestToNom := 1/EPSILON; // Start off big.
-      cSweepNomVal := ReadSpiceVariableValue(String(sweeps[cSweep].SweepVar));
+      cSweepNomVal := ReadSpiceVariableValue(String(sweeps[cSweep].SweepVar),readOK);
     end
     else
       cNumSweepSteps := 1; // No sweeps; only one step (nominal value)

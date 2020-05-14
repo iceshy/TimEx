@@ -32,10 +32,10 @@ interface
 uses
   SysUtils, TX_Math, TX_Globals;
 
-function ReadSpiceVariableValue(rv : string) : Double;
+function ReadSpiceVariableValue(rv : string; var rvSuccess : boolean) : Double;
 procedure SetSpiceVariableValue(svName : string; svValue : double);
 procedure ExitWithHaltCodeStrings(EText : string; HCode : integer);
-function EvaluateSpiceExpression(eeTest : string; leadingMinus : Double) : Double;
+function EvaluateSpiceExpression(eeTest : string; leadingMinus : Double; var eeSuccess : boolean) : Double;
 procedure WriteDot(wdLength, wdDotSize : Integer; var wdCount, wdLastDot : Integer);
 function StripSpaces(FullString : string) : string;
 function StripMinus(FullString : string) : string;
@@ -44,13 +44,13 @@ function ReadRealFromText(txtext : string; varDefault : double; errorText : stri
 function ReadIntFromText(txtext : string; varDefault : integer; errorText : string) : integer;
 function ReadStrFromText(txtext : string) : string;
 function ReadValueAfterEqualSign(rText, rIdentifier : string) : string;
-function ConvertToValue(cvStr : string) : double;
+function ConvertToValue(cvStr : string; var cvSuccess : boolean) : double;
 function ReadStrFromMany(txIndex : integer; txtext, txSeparator : string) : string;
 function CountSubstrings(cText, cSeparator : String) : Integer;
 function ReadLastStrFromMany(var txtext : string; txSeparator : string; txWipe : boolean) : string;
 function CreateTab(txSpaces : Integer) : string;
 procedure AddValueToTextString(avValue : Double; var avTeks : string; avMinValue : Double; avExceptTeks : string; avPrecision, avDigits, avTrimLength, avPadLength : Integer);
-function SynthesizeSpiceCard(sCardLineRaw : string) : string;
+//function SynthesizeSpiceCard(sCardLineRaw : string) : string;
 procedure SynthesizeSpiceCardNoise(sCardLineRaw : string; var sFile : TextFile);
 
 implementation
@@ -74,24 +74,31 @@ begin
     StringIsDigit := False;
 end;
 { ------------------------- ReadSpiceVariableValue --------------------------- }
-function ReadSpiceVariableValue(rv : string) : Double;
+function ReadSpiceVariableValue(rv : string; var rvSuccess : boolean) : Double;
 
 var
   rv1 : Integer;
   rvRet : Double;
+  rvRead : boolean;
 begin
   rvRet := 0;
-  if ANSIChar(rv[1]) in ['a'..'z','A'..'Z','_'] then
+  rvRead := false;
+  if ANSIChar(rv[1]) in ['a'..'z','A'..'Z','_','{','}'] then
   begin
     for rv1 := 0 to High(spiceVariables) do
       if spiceVariables[rv1].name = ANSIString(Copy(rv,1,Length(rv))) then
+      begin
         rvRet := spiceVariables[rv1].value;
+        rvRead := true;
+      end;
   end
   else
     if CheckIfReal(rv) then
       rvRet := StrToFloat(rv)
     else
       ExitWithHaltCodeStrings('Cannot parse '+rv+'.', 0);
+  if not rvRead then
+    rvSuccess := false;
   ReadSpiceVariableValue := rvRet;
 end; // ReadSpiceVariableValue
 { -------------------------- SetSpiceVariableValue --------------------------- }
@@ -150,7 +157,7 @@ begin
   ReplacePlusMinusArithmeticOps := rpNewStr;
 end;
 { ------------------------ EvaluateSpiceExpression --------------------------- }
-function EvaluateSpiceExpression(eeTest : string; leadingMinus : Double) : Double;
+function EvaluateSpiceExpression(eeTest : string; leadingMinus : Double; var eeSuccess : boolean) : Double;
 // Recursively find value of expression. Operator prededence : / * + -
 var
   eeStr, eeTempStr1, eeTempStr2 : string;
@@ -200,7 +207,7 @@ begin
           eeTempStr1 := Copy(eeStr,1,ee1-1);
         if ee2 < Length(eeStr) then
           eeTempStr2 := Copy(eeStr,ee2+1,Length(eeStr)-ee2);
-        eeStr := eeTempStr1 + lowercase(FloatToStrF(EvaluateSpiceExpression(Copy(eeStr,ee1+1,ee2-ee1-1), 1.0),ffExponent,15,4)) + eeTempStr2;
+        eeStr := eeTempStr1 + lowercase(FloatToStrF(EvaluateSpiceExpression(Copy(eeStr,ee1+1,ee2-ee1-1), 1.0, eeSuccess),ffExponent,15,4)) + eeTempStr2;
         eeStr := ReplacePlusMinusArithmeticOps(eeStr);
         ee1 := Length(eeStr);
       end;
@@ -209,29 +216,29 @@ begin
   end;
   if (pos('[',eeStr) > 0) then // character for arithmetic "-" operator
   begin
-    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos('[',eeStr)-1), leadingMinus);   // If a leading minus was sent in, pass it down
-    t2 := EvaluateSpiceExpression(Copy(eeStr,pos('[',eeStr)+1,Length(eeStr)-pos('[',eeStr)), -1.0);
+    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos('[',eeStr)-1), leadingMinus, eeSuccess);   // If a leading minus was sent in, pass it down
+    t2 := EvaluateSpiceExpression(Copy(eeStr,pos('[',eeStr)+1,Length(eeStr)-pos('[',eeStr)), -1.0, eeSuccess);
     EvaluateSpiceExpression := t1+t2; // We work the "-" into the first variable in the new term...
     exit;
   end
   else if pos(']',eeStr) > 0 then // character for arithmetic "+" operator
   begin
-    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos(']',eeStr)-1), leadingMinus);
-    t2 := EvaluateSpiceExpression(Copy(eeStr,pos(']',eeStr)+1,Length(eeStr)-pos(']',eeStr)), 1.0);
+    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos(']',eeStr)-1), leadingMinus, eeSuccess);
+    t2 := EvaluateSpiceExpression(Copy(eeStr,pos(']',eeStr)+1,Length(eeStr)-pos(']',eeStr)), 1.0, eeSuccess);
     EvaluateSpiceExpression := t1+t2;
     exit;
   end
   else if pos('*',eeStr) > 0 then
   begin
-    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos('*',eeStr)-1), leadingMinus);
-    t2 := EvaluateSpiceExpression(Copy(eeStr,pos('*',eeStr)+1,Length(eeStr)-pos('*',eeStr)), 1.0);
+    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos('*',eeStr)-1), leadingMinus, eeSuccess);
+    t2 := EvaluateSpiceExpression(Copy(eeStr,pos('*',eeStr)+1,Length(eeStr)-pos('*',eeStr)), 1.0, eeSuccess);
     EvaluateSpiceExpression := t1*t2;
     exit;
   end
   else if pos('/',eeStr) > 0 then
   begin
-    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos('/',eeStr)-1), leadingMinus);
-    t2 := EvaluateSpiceExpression(Copy(eeStr,pos('/',eeStr)+1,Length(eeStr)-pos('/',eeStr)), 1.0);
+    t1 := EvaluateSpiceExpression(Copy(eeStr,1,pos('/',eeStr)-1), leadingMinus, eeSuccess);
+    t2 := EvaluateSpiceExpression(Copy(eeStr,pos('/',eeStr)+1,Length(eeStr)-pos('/',eeStr)), 1.0, eeSuccess);
     EvaluateSpiceExpression := t1/t2;
     exit;
   end
@@ -240,8 +247,8 @@ begin
     if eeStr <> '' then
     begin
 //      if eeStr[1] = '@' then
-      if (ANSIChar(eeStr[1]) in ['a'..'z','A'..'Z','_']) then
-        EvaluateSpiceExpression := leadingMinus * ReadSpiceVariableValue(eeStr)
+      if (ANSIChar(eeStr[1]) in ['a'..'z','A'..'Z','_','{','}']) then
+        EvaluateSpiceExpression := leadingMinus * ReadSpiceVariableValue(eeStr,eeSuccess)
       else
       begin
         EvaluateSpiceExpression := leadingMinus * StringToDouble(eeStr);
@@ -406,7 +413,7 @@ begin
   ReadValueAfterEqualSign := rTrim;
 end; // ReadValueAfterEqualSign
 { ---------------------------- ConvertToValue -------------------------------- }
-function ConvertToValue(cvStr : string) : double;
+function ConvertToValue(cvStr : string; var cvSuccess : boolean) : double;
 // Convert a SPICE/JSIM element value to a double - might contain braced expressions
 var
   cvStrTrim : string;
@@ -417,13 +424,13 @@ begin
   else
     cvStrTrim := cvStr;
   cvValue := EPSILON;
-  if (pos('{',cvStrTrim) > 0) then
-  begin
-    if (pos('}',cvStrTrim) > 0) and (pos('}',cvStrTrim) > pos('{',cvStrTrim)) then
-      cvValue := EvaluateSpiceExpression(copy(cvStrTrim,pos('{',cvStrTrim)+1,pos('}',cvStrTrim) - pos('{',cvStrTrim)-1),1);
-  end
-  else
-    cvValue := StringToDouble(cvStrTrim);
+//  if (pos('{',cvStrTrim) > 0) then
+//  begin
+//    if (pos('}',cvStrTrim) > 0) and (pos('}',cvStrTrim) > pos('{',cvStrTrim)) then
+      cvValue := EvaluateSpiceExpression(cvStrTrim,1,cvSuccess);
+//  end
+//  else
+//    cvValue := StringToDouble(cvStrTrim);
   ConvertToValue := cvValue;
 end; // ConvertToValue
 { ---------------------------- ReadStrFromMany ------------------------------- }
@@ -539,12 +546,13 @@ function SynthesizeSpiceCard(sCardLineRaw : string) : string;
 var
   sCard, sSnippet, sCardLeft, sCardRight : string;
   sValue : double;
+  sSuccess : boolean;
 
 begin
+  sCard := sCardLineRaw;
   if pos('.param',LowerCase(sCardLineRaw)) > 0 then
-    sCard := '*'+sCardLineRaw                          // .PARAM not supported in JSIM yet - comment the line
-  else
-    sCard := sCardLineRaw;
+    if useJSIM then
+      sCard := '*'+sCardLineRaw;                          // .PARAM not supported in JSIM yet - comment the line
   repeat
     if (pos('{',sCard) > 0) then
     begin
@@ -556,7 +564,7 @@ begin
         else
           sCardRight := '';
         sSnippet := copy(sCard,pos('{',sCard)+1,pos('}',sCard) - pos('{',sCard)-1);
-        sValue := EvaluateSpiceExpression(sSnippet,1);
+        sValue := EvaluateSpiceExpression(sSnippet,1,sSuccess);
         sSnippet := FloatToStrF(sValue,ffGeneral,6,4);
         sCard := sCardLeft + sSnippet + sCardRight;
       end;
@@ -573,11 +581,14 @@ procedure SynthesizeSpiceCardNoise(sCardLineRaw : string; var sFile : TextFile);
 var
   sCard, sCard2, sSnippet, sCardLeft, sCardRight : string;
   sValue, sNoiseAmp : double;
+  sSuccess : boolean;
 
 begin
   if pos('.param',LowerCase(sCardLineRaw)) > 0 then
   begin
-    sCard := '*'+sCardLineRaw;                          // .PARAM not supported in JSIM yet - comment the line
+    sCard := sCardLineRaw;
+    if useJSIM then
+      sCard := '*'+sCardLineRaw;                          // .PARAM not supported in JSIM yet - comment the line
     WriteLn(sFile,sCard);
   end
   else
@@ -594,7 +605,7 @@ begin
           else
             sCardRight := '';
           sSnippet := copy(sCard,pos('{',sCard)+1,pos('}',sCard) - pos('{',sCard)-1);
-          sValue := EvaluateSpiceExpression(sSnippet,1);
+          sValue := EvaluateSpiceExpression(sSnippet,1,sSuccess);
           sSnippet := FloatToStrF(sValue,ffGeneral,6,4);
           sCard := sCardLeft + sSnippet + sCardRight;
         end;
