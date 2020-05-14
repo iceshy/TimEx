@@ -1,6 +1,8 @@
 # TimEx
 Netlist-to-Verilog extraction for SFQ circuits
 
+Version 2.04.01 (14 May 2020)
+
 TimEx was developed under IARPA contracts FA8750-15-C-0203-IARPA-BAA-14-03 and SuperTools/ColdFlux (via the U.S. Army Research Office grant W911NF-17-1-0120).
 
 TimEx takes a JoSIM or JSIM deck file as the first command line parameter and considers this as the Device-Under-Test (DUT). The DUT needs to be described as a subcircuit in the deck file, and input and output ports must be specified. TimEx then constructs a simulation test bench consisting of specified load cells at each input and output as well as specified source and sink cells.
