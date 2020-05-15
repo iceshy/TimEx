@@ -131,20 +131,20 @@ begin
         if elements[rev1].Name[1] = 'l' then  // inductor
         begin
           revStr := ReadStrFromMany(4,String(spiceDUTLines[rev2]),' '); // Read the value
-          elements[rev1].Value := ConvertToValue(revStr,rSuccess);
+          elements[rev1].Value := EvaluateSpiceExpression(revStr,1,rSuccess);
         end;
         if elements[rev1].Name[1] = 'b' then  // junction
         begin
           revStr := ReadValueAfterEqualSign(LowerCase(String(spiceDUTLines[rev2])),'area');  // Read the junction area
           if revStr <> '' then
-            revValue := ConvertToValue(revStr,rSuccess)
+            revValue := EvaluateSpiceExpression(revStr,1,rSuccess)
           else
             revValue := 1.0; // default
           revStr := LowerCase(ReadStrFromMany(4,String(spiceDUTLines[rev2]),' ')); // Read the JJ model name
           revCrit := 0;
           for rev3 := 0 to High(jjModels) do
             if String(jjModels[rev3].Name) = revStr then
-          revCrit := jjModels[rev3].Value;
+              revCrit := jjModels[rev3].Value;
           if revCrit = 0 then
             ExitWithHaltCode('No Ic read for Josephson junction in DUT card "'+String(SpiceDUTLines[rev2])+'".',101);
           elements[rev1].Value := revValue*revCrit;
@@ -164,6 +164,7 @@ var
   rFile : TextFile;
   rCrossRef : Array of Integer;
   rSeparator : String;
+  rInQuotes : boolean;
 
 begin
   rSeparator := ',';
@@ -182,6 +183,24 @@ begin
   SetLength(rCrossRef,Length(elements)); // rCrossRef[n] holds the column number of the nth element's current
   for r1 := 0 to High(rCrossRef) do
     rCrossRef[r1] := -1;  // Value to indicate unindexed
+  if not useJSIM then
+  begin
+    // Clean commas inside voltage prints
+    r2 := 1;
+    rInQuotes := false;
+    repeat
+      if rText[r2] = '"' then
+        rInQuotes := not rInQuotes;
+      if (rText[r2] = ',') and rInQuotes then
+      begin
+        rText := copy(rText,1,r2-1) + ' ' + copy(rText,r2+1,Length(rText)-r2);
+      end;
+      inc(r2);
+
+    until (r2 >+ Length(rText));
+
+  end;
+
   for r1 := 2 to CountSubstrings(rText,rSeparator) do
   begin
     rVarName := ReadStrFromMany(r1,rText,rSeparator);
