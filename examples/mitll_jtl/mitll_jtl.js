@@ -17,8 +17,8 @@
 * Variables
 .PARAM bias=1.0
 ******************************************
-*               in out
-*$Ports  in_in  out_out
+*        in out
+*$Ports  a  q
 .SUBCKT jtl 2  5 
 B1  1 6 jjmitll100 area=2.5 
 B2  4 8 jjmitll100 area=2.5 
