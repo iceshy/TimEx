@@ -1,6 +1,6 @@
 * Definition file for TimEx - MITLL generic cell library with 250 uA JJs and PTL I/O
 * Author:   CJ Fourie
-* Last mod: 18 December 2017
+* Last mod: 14 May 2020
 *
 * This work was supported by the Office of the Director of National          
 * Intelligence (ODNI), Intelligence Advanced Research Projects Activity        
@@ -95,8 +95,8 @@ RB1   1  9  4.31
 RB2   3  10 4.31  
 RB3   5  12 3.88  
 * PTL-TX
-B01   23 27 jmitll100 area=2
-B02   24 26 jmitll100 area=1.62
+B01   23 27 jjmitll100 area=2
+B02   24 26 jjmitll100 area=1.62
 IB01  0  30 pwl(0      0 5p 0.00023)
 IB02  0  31 pwl(0      0 5p 8.2e-005)
 L01   11 23 2.5e-012  
