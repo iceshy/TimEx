@@ -1,6 +1,13 @@
 =============================================
-TimEx Change Log - v2.00
+TimEx Change Log - v2.05
 =============================================
+
+v2.05.00 - 14 May 2020
+* Added:   Expression evaluation to element values.
+* Fixed:   Error in loop flux calculation when JoSIM is selected.
+
+v2.04.01 - 14 May 2020
+* Fixed:   Fixed memory error.
 
 v2.04.00 - 2 April 2020
 * Added:   Support for SFQ logic pin names in SuperTools ColdFlux cell library standard.
