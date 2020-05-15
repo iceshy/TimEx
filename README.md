@@ -1,7 +1,7 @@
 # TimEx
 Netlist-to-Verilog extraction for SFQ circuits
 
-Version 2.04.01 (14 May 2020)
+Version 2.05 (15 May 2020)
 
 TimEx was developed under IARPA contracts FA8750-15-C-0203-IARPA-BAA-14-03 and SuperTools/ColdFlux (via the U.S. Army Research Office grant W911NF-17-1-0120).
 
